@@ -30,9 +30,8 @@ try {
 
     Copy-Item (Join-Path $publish "MlsmoonSkillManager.exe") (Join-Path $dist "MlsmoonSkillManager.exe") -Force
     Copy-Item (Join-Path $root "catalog") (Join-Path $dist "catalog") -Recurse -Force
-    $privateOverride = Join-Path $dist "catalog\skills.override.json"
-    if (Test-Path $privateOverride) {
-        Remove-Item $privateOverride -Force
+    if (Test-Path (Join-Path $dist "catalog\skills.override.json")) {
+        Write-Host "portable: included local catalog/skills.override.json"
     }
     Write-Host "portable: dist\MlsmoonSkillManager.exe ($version)"
 }

@@ -16,7 +16,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 - `ThemeManager` 只替换 Dark/Light 字典，`Themes/Controls.xaml` 始终合并
 - 自定义控件必须盖掉 WPF 默认 `ControlBrush`（浅色系统底），不要露出系统白底
 - 新界面先拼 `Controls/` 里的控件，不要在 `MainWindow.xaml` 再画一套卡片边框
-- 扫描 / 对照 Git 时 `ItemCard` 整卡是不确定进度条（`IsLoading`），不要只在卡片里写「正在对照」
+- 扫描 / 对照 Git 时 `ItemCard` 整卡是 0–100 进度条（`IsLoading` + `LoadText` + `LoadProgress`）：留下条目名、当前步骤文案和百分比。不要用扫光动画冒充进度，也不要只在卡片正文里写「正在对照」
 
 ## 控件
 

@@ -16,7 +16,7 @@
       "id": "your-public-plugin",
       "name": "your-public-plugin",
       "repo": "https://github.com/MlsMoon/your-public-plugin",
-      "description": "公开 Plugin 的格式示例。安装到 Assets/Plugins，与 Skill 的 .agent/skills 分开。",
+      "description": "公开 Plugin 的格式示例。安装到 Assets/Plugins，与 Skill 的 .agents/skills 分开。",
       "sourcePath": ".",
       "installName": "YourPublicPlugin",
       "installPath": "Assets/Plugins/YourPublicPlugin",

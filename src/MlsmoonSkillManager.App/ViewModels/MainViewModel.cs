@@ -23,7 +23,6 @@ public sealed class MainViewModel : ObservableObject
     private readonly SkillGit _skillGit;
     private readonly UpdateService _updater;
     private readonly UserSettings _settings;
-    private CancellationTokenSource? _gitCts;
     private string _workspacePath = "";
     private string _ghStatus = "尚未检查 gh";
     private string _igpStatus = "尚未检查局域网";
@@ -52,6 +51,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _showRepoLinks;
     private bool _suppressRootEvents;
     private GhAccountStatus _account = new();
+    private SkillCatalogScan _scan = null!;
 
     public MainViewModel()
     {
@@ -144,6 +144,11 @@ public sealed class MainViewModel : ObservableObject
         OpenProductRepoCommand = new RelayCommand(_ => OpenPath(ProductRepo));
         ClearCacheCommand = new RelayCommand(_ => ClearRepoCache());
         CopyDiagnosticsCommand = new RelayCommand(_ => Clipboard.SetText(BuildDiagnostics()));
+        _scan = new SkillCatalogScan(
+            AllSkills, _gh, _git, _skillGit,
+            () => NasUser, () => WorkspacePath, () => HasOpenWorkspace, Log,
+            ApplyAccount, ApplyNoLanCatalog, ApplyLanProbe, ApplyNasAccess,
+            () => UpdateCommand.RaiseCanExecuteChanged());
         ReloadWorkspaceItems();
         if (!string.IsNullOrWhiteSpace(WorkspacePath) && Directory.Exists(WorkspacePath))
         {
@@ -579,87 +584,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             _skillGit.ClearCaches();
-            _account = await _gh.GetAccountStatusAsync().ConfigureAwait(true);
-            GhStatus = _account.Detail;
-            _ghState = _account.AsAccessState();
-            Raise(nameof(GhTone));
-            Log(_account.Detail);
-            foreach (var row in AllSkills)
-            {
-                row.Access = new RepoAccess { State = AccessState.Checking, Message = "正在检查权限…" };
-                row.MarkGitChecking();
-            }
-
-            var lanHost = AllSkills.Select(item => item.Definition)
-                .FirstOrDefault(item => item.IsLan && !string.IsNullOrWhiteSpace(item.Host))
-                ?.Host;
-            if (string.IsNullOrWhiteSpace(lanHost))
-            {
-                ApplyNoLanCatalog();
-                Log("未配置局域网条目。");
-            }
-            else
-            {
-                var probe = await LanNetwork.ProbeAsync(lanHost).ConfigureAwait(true);
-                ApplyLanProbe(probe);
-                Log(probe.Detail);
-            }
-
-            foreach (var row in AllSkills.Where(item => !item.IsCompanion))
-            {
-                if (row.Definition.IsLan)
-                {
-                    row.Access = await _git.CheckLanAccessAsync(row.Definition, NasUser).ConfigureAwait(true);
-                    if (row.Access.CanInstall)
-                    {
-                        var branch = UnityWorkspace.PickBranch(
-                            row.Definition,
-                            HasOpenWorkspace ? UnityWorkspace.ReadEditorVersion(WorkspacePath) : null);
-                        var readme = await _git.TryReadReadmeAsync(
-                                row.Definition,
-                                NasUser,
-                                branch?.Name ?? "urp-17.5")
-                            .ConfigureAwait(true);
-                        row.ReadmeExcerpt = GitRemote.Excerpt(readme);
-                    }
-
-                    ApplyNasAccess(row.Access);
-                    if (!row.Access.CanInstall)
-                    {
-                        Log($"{row.Name}: {row.Access.Message}");
-                    }
-
-                    continue;
-                }
-
-                if (!RepoUrl.TryParse(row.Definition.Repo, out var repo))
-                {
-                    row.Access = new RepoAccess
-                    {
-                        State = AccessState.NoPermission,
-                        Message = "当前无权限访问"
-                    };
-                    continue;
-                }
-
-                row.Access = await _gh.CheckRepoAccessAsync(repo, _account).ConfigureAwait(true);
-                if (row.Access.State == AccessState.NoPermission)
-                {
-                    Log($"{row.Name}: 当前无权限访问");
-                }
-            }
-
-            foreach (var row in AllSkills.Where(item => item.IsCompanion))
-            {
-                var parent = AllSkills.FirstOrDefault(item =>
-                    item.Definition.Id.Equals(row.Definition.ParentPluginId, StringComparison.OrdinalIgnoreCase));
-                row.Access = parent?.Access ?? new RepoAccess
-                {
-                    State = AccessState.NoPermission,
-                    Message = "所属 Plugin 当前无权限访问"
-                };
-            }
-
+            await _scan.RefreshAccessAsync().ConfigureAwait(true);
             RefreshInstallStatuses();
         }
         finally
@@ -813,73 +738,8 @@ public sealed class MainViewModel : ObservableObject
     {
         if (sender is SkillRowViewModel row && HasOpenWorkspace)
         {
-            _ = InspectRowAsync(row);
+            _ = _scan.InspectOneAsync(row);
         }
-    }
-
-    private async Task InspectGitAsync()
-    {
-        _gitCts?.Cancel();
-        _gitCts = new CancellationTokenSource();
-        var ct = _gitCts.Token;
-        if (!HasOpenWorkspace)
-        {
-            foreach (var row in AllSkills)
-            {
-                row.ApplyGit(SkillGitStatus.Empty);
-            }
-
-            UpdateCommand.RaiseCanExecuteChanged();
-            return;
-        }
-
-        foreach (var row in AllSkills)
-        {
-            row.MarkGitChecking();
-        }
-
-        try
-        {
-            var editor = UnityWorkspace.ReadEditorVersion(WorkspacePath);
-            foreach (var row in AllSkills.ToList())
-            {
-                ct.ThrowIfCancellationRequested();
-                await InspectRowAsync(row, editor, ct).ConfigureAwait(true);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
-
-    private async Task InspectRowAsync(
-        SkillRowViewModel row,
-        string? editor = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!HasOpenWorkspace)
-        {
-            return;
-        }
-
-        editor ??= UnityWorkspace.ReadEditorVersion(WorkspacePath);
-        var status = await _skillGit.InspectAsync(
-                row.Definition,
-                WorkspacePath,
-                row.Installs,
-                row.SelectedBranch,
-                NasUser,
-                editor,
-                row.Access.CanInstall,
-                cancellationToken)
-            .ConfigureAwait(true);
-        if (cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        row.ApplyGit(status);
-        UpdateCommand.RaiseCanExecuteChanged();
     }
 
     private void NotifyWorkspaceState()
@@ -914,7 +774,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         ApplyFilter();
-        _ = InspectGitAsync();
+        _ = _scan.InspectAllAsync();
     }
 
     private List<string> SelectedRootNames()
@@ -1030,6 +890,14 @@ public sealed class MainViewModel : ObservableObject
         }
 
         SettingsTab = tab.Id;
+    }
+
+    private void ApplyAccount(GhAccountStatus account)
+    {
+        _account = account;
+        GhStatus = account.Detail;
+        _ghState = account.AsAccessState();
+        Raise(nameof(GhTone));
     }
 
     private void ApplyNoLanCatalog()

@@ -1,6 +1,6 @@
 ---
 name: mlsmoon-verify
-description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager，少写传统单测、不 mock。适用于用户写 -t、-t -catalog、-t -install、验证、测一下，或改完 catalog / 安装 / 权限 / UI 之后要验收。
+description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager，少写传统单测、不 mock。适用于用户写 -t、-t -catalog、-t -install、-t -size、验证、测一下，或改完 catalog / 安装 / 权限 / UI / 行数预算之后要验收。
 ---
 
 # 验证（`-t`）
@@ -17,6 +17,7 @@ description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager�
 -t -gh
 -t -ui
 -t -release
+-t -size
 -t -all
 ```
 
@@ -54,14 +55,15 @@ description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager�
 | 参数 | 脚本会做 | 子 agent 还要做 |
 |---|---|---|
 | `-build` | `dotnet build` 解决方案 | 编不过就停 |
-| `-catalog` | 读真实 `catalog/skills.json`：id 唯一、companion 不在 `skills`、`spine-gpu-skinning` 只有 unity、psd/3d 为 all、公开清单没有 `source: lan` / 内网 host、`installPath` 不含 `..` | 对照 `SKILL.md`「新增 catalog 条目」 |
-| `-install` | 跑已有 `CatalogAndInstall`（真临时目录、无 mock） | 改了安装/标记/companion 时看失败信息，不要补新 Fact |
-| `-workspace` | 跑已有 `WorkspaceBook` | 列表迁入/去重/移除是否符合 skill |
-| `-sync` | 用真 `git` 建临时仓库：`ls-remote --heads`、两目录文件对照；断言冲突策略（本地改动 + 远端更新 = 不能自动更新） | 对照 `SKILL.md` 工作区 Git 约定 |
+| `-catalog` | 读真实 `catalog/skills.json`：id 唯一、companion 不在 `skills`、`spine-gpu-skinning` 只有 unity、psd/3d 为 all、公开清单没有 `source: lan` / 内网 host、`installPath` 不含 `..` | 对照 `mlsmoon-catalog` |
+| `-install` | 跑已有 `CatalogAndInstall`（真临时目录、无 mock） | 改了安装/标记/companion 时看失败信息，不要补新 Fact。对照 `mlsmoon-install` |
+| `-workspace` | 跑已有 `WorkspaceBook` | 列表迁入/去重/移除是否符合 `mlsmoon-workspace` |
+| `-sync` | 用真 `git` 建临时仓库：`ls-remote --heads`、两目录文件对照；断言冲突策略（本地改动 + 远端更新 = 不能自动更新） | 对照 `mlsmoon-workspace` 卡片状态 |
 | `-gh` | 对 catalog 里每个 `repo` 跑真 `gh repo view owner/name --json name,visibility,isPrivate` | 没装 gh 或未登录就标 skip，不要伪造 |
-| `-ui` | 只检查工程能编过 | `Scripts\rundev.bat`，看标题栏不是系统白条、右上角是设置齿轮、「当前工作区」在工作区列表上方、设置左侧是 Tab、连接状态在设置「连接」不在状态栏、没开工作区不能安装；卡片/按钮悬停不放大 |
-| `-release` | `VERSION` 是 `X.Y.Z`；`CHANGELOG.md` 有对应 `## [VERSION]`；`release.yml` 要求 tag 在 `origin/release` 上，用 `release_notes.ps1` 当正文，并上传 `MlsmoonSkillManager-Setup-*.exe` | 没让发版就不要改 `VERSION`、不要打 tag。应用内更新只认 Setup 资产。Release 不要只显示 Full Changelog 对比链接 |
-| `-all` | build + catalog + install + workspace + sync + release；gh/ui 不自动跑 | 需要再显式加 `-gh` / `-ui` |
+| `-ui` | 只检查工程能编过 | `Scripts\rundev.bat`，看标题栏不是系统白条、右上角是设置齿轮、「当前工作区」在工作区列表上方、设置左侧是 Tab 且切 Tab 宽度不变、连接状态在设置「连接」不在状态栏、DEV 没有「更新」Tab 且齿轮无「新」、没开工作区不能安装；卡片/按钮悬停不放大 |
+| `-release` | `VERSION` 是 `X.Y.Z`；`CHANGELOG.md` 有对应 `## [VERSION]`；`release.yml` 要求 tag 在 `origin/release` 上，用 `release_notes.ps1` 当正文，并上传 `MlsmoonSkillManager-Setup-*.exe` | 没让发版就不要改 `VERSION`、不要打 tag。对照 `mlsmoon-release` |
+| `-size` | 跑 `Scripts\file_budget.ps1`：默认 300 行，例外/债务见 `mlsmoon-self-iterate/file-budget.json` | 新超标必须拆。债务文件只准缩短。不要把 ViewModel 改成例外 |
+| `-all` | build + catalog + install + workspace + sync + release + size；gh/ui 不自动跑 | 需要再显式加 `-gh` / `-ui` |
 
 ## 不要做
 

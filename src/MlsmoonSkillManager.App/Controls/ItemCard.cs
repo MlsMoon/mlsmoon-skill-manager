@@ -49,6 +49,18 @@ public class ItemCard : HeaderedContentControl
         typeof(ItemCard),
         new PropertyMetadata(false, OnIsLoadingChanged));
 
+    public static readonly DependencyProperty LoadTextProperty = DependencyProperty.Register(
+        nameof(LoadText),
+        typeof(string),
+        typeof(ItemCard),
+        new PropertyMetadata(""));
+
+    public static readonly DependencyProperty LoadProgressProperty = DependencyProperty.Register(
+        nameof(LoadProgress),
+        typeof(double),
+        typeof(ItemCard),
+        new PropertyMetadata(0d));
+
     public object? Badge
     {
         get => GetValue(BadgeProperty);
@@ -89,6 +101,18 @@ public class ItemCard : HeaderedContentControl
     {
         get => (bool)GetValue(IsLoadingProperty);
         set => SetValue(IsLoadingProperty, value);
+    }
+
+    public string LoadText
+    {
+        get => (string)GetValue(LoadTextProperty);
+        set => SetValue(LoadTextProperty, value);
+    }
+
+    public double LoadProgress
+    {
+        get => (double)GetValue(LoadProgressProperty);
+        set => SetValue(LoadProgressProperty, value);
     }
 
     public override void OnApplyTemplate()

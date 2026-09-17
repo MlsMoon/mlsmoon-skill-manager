@@ -10,6 +10,8 @@ public sealed class SkillRowViewModel : ObservableObject
     private string _installSummary = "未扫描";
     private string _readmeExcerpt = "";
     private string _selectedBranch = "";
+    private string _loadText = "";
+    private double _loadProgress;
     private IReadOnlyList<RootInstallStatus> _installs = [];
     private SkillGitStatus _git = SkillGitStatus.Empty;
     private bool _suppressBranch;
@@ -45,20 +47,8 @@ public sealed class SkillRowViewModel : ObservableObject
     public bool IsLan => Definition.IsLan;
     public bool IsPlugin => Definition.IsPlugin;
     public bool IsCompanion => Definition.IsCompanion;
-    public string KindLabel => Definition.IsLan
-        ? "局域网"
-        : Definition.IsPlugin
-            ? "Plugin"
-            : Definition.IsCompanion
-                ? "随插件"
-                : "Skill";
-    public BadgeAppearance KindAppearance => Definition.IsLan
-        ? BadgeAppearance.Warning
-        : Definition.IsPlugin
-            ? BadgeAppearance.Plugin
-            : Definition.IsCompanion
-                ? BadgeAppearance.Neutral
-                : BadgeAppearance.Accent;
+    public string KindLabel => SkillRowPresentation.KindLabel(Definition);
+    public BadgeAppearance KindAppearance => SkillRowPresentation.KindAppearance(Definition);
     public IReadOnlyList<EngineTagViewModel> EngineTags { get; }
     public string EngineLabel => Definition.IsUniversal
         ? "全引擎"
@@ -73,14 +63,8 @@ public sealed class SkillRowViewModel : ObservableObject
         || !string.IsNullOrWhiteSpace(Git.Message);
     public bool ShowLocalChanges => Git.Changes.Count > 0;
     public bool ShowBranchWarning => !string.IsNullOrWhiteSpace(Git.Warning);
-    public string CompanionHint =>
-        ShowCompanionHint
-            ? "安装时会一并写入 Skill 目标：" + string.Join("、", Definition.CompanionSkills.Select(item => item.DisplayName))
-            : "";
-    public string ParentHint =>
-        IsCompanion && !string.IsNullOrWhiteSpace(Definition.ParentPluginName)
-            ? $"属于 Plugin {Definition.ParentPluginName}，装完插件后才会出现。"
-            : "";
+    public string CompanionHint => SkillRowPresentation.CompanionHint(Definition);
+    public string ParentHint => SkillRowPresentation.ParentHint(Definition);
 
     public RepoAccess Access
     {
@@ -94,6 +78,7 @@ public sealed class SkillRowViewModel : ObservableObject
                 Raise(nameof(ShowDetails));
                 Raise(nameof(DeniedOnly));
                 Raise(nameof(IsLoading));
+                Raise(nameof(LoadText));
             }
         }
     }
@@ -161,6 +146,7 @@ public sealed class SkillRowViewModel : ObservableObject
             Raise(nameof(UpdateLabel));
             Raise(nameof(CanApplyUpdate));
             Raise(nameof(IsLoading));
+            Raise(nameof(LoadText));
         }
     }
 
@@ -171,72 +157,40 @@ public sealed class SkillRowViewModel : ObservableObject
     public bool CanApplyUpdate => Git.CanUpdate && Access.CanInstall;
     public string InstallFolder =>
         Installs.FirstOrDefault(item => item.Installed)?.Path ?? "";
+    public string LoadText => !string.IsNullOrWhiteSpace(_loadText)
+        ? _loadText
+        : Access.State == AccessState.Checking
+            ? "正在检查权限…"
+            : Git.State == SkillGitState.Checking
+                ? "正在对照 Git…"
+                : "";
+    public double LoadProgress => _loadProgress;
 
     public string GitStatusText => string.IsNullOrWhiteSpace(Git.Message)
         ? ""
         : Git.Message;
 
     public BadgeAppearance GitStatusTone => SkillGitPresentation.Tone(Git.State);
-
-    public string LocalChangesText
-    {
-        get
-        {
-            if (Git.Changes.Count == 0)
-            {
-                return "";
-            }
-
-            var lines = Git.Changes.Take(8).Select(item => item.Label);
-            var text = string.Join(Environment.NewLine, lines);
-            if (Git.Changes.Count > 8)
-            {
-                text += Environment.NewLine + $"还有 {Git.Changes.Count - 8} 个文件";
-            }
-
-            return text;
-        }
-    }
-
+    public string LocalChangesText => SkillRowPresentation.LocalChanges(Git);
     public string UpdateLabel => SkillGitPresentation.ActionLabel(Git.State);
-
     public bool ShowDetails => Access.State is AccessState.Accessible or AccessState.Checking or AccessState.Unknown;
-
     public bool DeniedOnly => Access.State is AccessState.NoPermission
         or AccessState.GhMissing
         or AccessState.GhNotLoggedIn
         or AccessState.OffNetwork
         or AccessState.Unreachable
         or AccessState.NeedsAuth;
+    public string AccessText => SkillRowPresentation.AccessText(Access);
+    public BadgeAppearance AccessTone => SkillRowPresentation.AccessTone(Access.State);
+    public static BadgeAppearance ToneFor(AccessState state) => SkillRowPresentation.AccessTone(state);
 
-    public string AccessText => Access.State switch
+    public void SetScan(string text, int percent)
     {
-        AccessState.Checking => "正在检查权限…",
-        AccessState.Accessible => string.IsNullOrWhiteSpace(Access.Visibility)
-            ? "可访问"
-            : $"可访问 · {Access.Visibility}",
-        AccessState.NoPermission => string.IsNullOrWhiteSpace(Access.Message) ? "当前无权限访问" : Access.Message,
-        AccessState.OffNetwork => "不在该局域网",
-        AccessState.Unreachable => "NAS 不可达",
-        AccessState.NeedsAuth => "NAS 需要 SSH 密码或密钥",
-        AccessState.GhMissing => "未检测到 gh",
-        AccessState.GhNotLoggedIn => "gh 未登录",
-        _ => "待检查"
-    };
-
-    public BadgeAppearance AccessTone => ToneFor(Access.State);
-
-    public static BadgeAppearance ToneFor(AccessState state) => state switch
-    {
-        AccessState.Accessible => BadgeAppearance.Success,
-        AccessState.Checking => BadgeAppearance.Neutral,
-        AccessState.Unknown => BadgeAppearance.Neutral,
-        AccessState.GhNotLoggedIn => BadgeAppearance.Warning,
-        AccessState.OffNetwork => BadgeAppearance.Warning,
-        AccessState.NeedsAuth => BadgeAppearance.Warning,
-        AccessState.Unreachable => BadgeAppearance.Danger,
-        _ => BadgeAppearance.Danger
-    };
+        _loadText = text;
+        _loadProgress = Math.Clamp(percent, 0, 100);
+        Raise(nameof(LoadText));
+        Raise(nameof(LoadProgress));
+    }
 
     public void MarkGitChecking()
     {

@@ -15,13 +15,13 @@ Windows 桌面应用：把 **MlsMoon 用 GitHub 管起来的 Agent Skill 和 Uni
 ## 它做什么
 
 1. 左侧添加并切换多个工作区；列表和每个工作区自己的 Skill 安装目标记在本机。旧的 `lastWorkspace` 会自动迁进列表。
-2. **Skill** 自动检测 `.claude` / `.grok`（以及已存在的 `.agents`）。**默认安装目标是 `.agent`**。
+2. **Skill** 自动检测 `.claude` / `.grok` / `.codex`（旧版 Codex）。**默认安装目标是 `.agents`**。旧目录 `.agent` 会当成 `.agents`。
 3. **Plugin** 走另一套路径：默认 `{工作区}/Assets/Plugins/{installName}/`。例如公开仓库 [SpineGpuSkinning](https://github.com/MlsMoon/SpineGpuSkinning) 装到 `Assets/Plugins/SpineGpuSkinning`。
 4. 只展示 `catalog/skills.json` 里登记过的条目（名字 ↔ 仓库链接）。随附 Skill 不能当独立项安装；所属 Plugin 装进当前工作区后才显示。
 5. 用本机 [GitHub CLI](https://cli.github.com/)（`gh`）检查仓库权限。
 6. 私有仓库如果当前账号看不到：仍然显示 **名字**，并提示 **当前无权限访问**，不能安装。
 7. 有权限时：Skill 复制到 `{工作区}/{根}/skills/{installName}/`；Plugin 复制到自己的 `installPath`，并一并写入 `companionSkills`。
-8. 打开工作区后对照 Git：卡片显示当前分支、是否已是最新、工作区改过哪些文件。没有更新会标明；有冲突只提示，不自动覆盖，请在安装目录里手动处理。
+8. 打开工作区后对照 Git：卡片写清本机落后远端、本机超前、已分叉还是已对齐，并列工作区改过的文件。冲突只提示，不自动覆盖。
 9. 右上角设置左侧是 Tab：外观、连接、更新、位置、关于、日志。GitHub / 局域网 / NAS 状态在「连接」里。NAS 网络可达但 SSH 要密码，和完全连不上会分开提示。
 10. 设置「更新」对照 [GitHub Releases](https://github.com/MlsMoon/moon-game-dev-tool-manager/releases) 的 Setup 包，可自动检查并下载安装。
 11. 局域网包（`source: lan`）写已被 gitignore 的 `catalog/skills.override.json`，不进公开 `catalog/skills.json`。公开仓库的格式可以写在 [`catalog/skills.override.example.json`](catalog/skills.override.example.json)。有权则读仓库 Readme，可选分支并合并 `Packages/manifest.json`。
@@ -49,7 +49,7 @@ Windows 桌面应用：把 **MlsMoon 用 GitHub 管起来的 Agent Skill 和 Uni
 catalog/skills.override.json
 ```
 
-这份真实覆盖已 gitignore，不要提交。公开仓库的格式写在 [`catalog/skills.override.example.json`](catalog/skills.override.example.json)。安装后的用户也可以用 `%AppData%\MlsmoonSkillManager\skills.override.json`。
+这份真实覆盖已 gitignore，不要提交。本地 `Scripts\build.bat` / `build_installer.bat` 会按本机 `catalog/` 原样打包（有 override 就带上）。GitHub 上的安装包没有这份文件。公开仓库的格式写在 [`catalog/skills.override.example.json`](catalog/skills.override.example.json)。安装后的用户也可以用 `%AppData%\MlsmoonSkillManager\skills.override.json`。
 
 Skill：
 
@@ -87,7 +87,7 @@ Plugin（随附 Skill 写在 `companionSkills`，不要放进 `skills`）：
 
 `sourcePath` 为 `.` 时，仓库根目录就是要复制的内容。Skill 必须有 `SKILL.md`；Plugin 不要求。
 
-[SpineGpuSkinning](https://github.com/MlsMoon/SpineGpuSkinning) 的本体走 Plugin。`gpuspine-use-plugin` / `gpuspine-develop-plugin` 随插件写入 `.agent/skills`（以及你勾选的其它 Skill 目标）；插件装进当前工作区后才会显示，并标成「随插件」。
+[SpineGpuSkinning](https://github.com/MlsMoon/SpineGpuSkinning) 的本体走 Plugin。`gpuspine-use-plugin` / `gpuspine-develop-plugin` 随插件写入 `.agents/skills`（以及你勾选的其它 Skill 目标）；插件装进当前工作区后才会显示，并标成「随插件」。
 
 ## 开发
 
@@ -96,7 +96,7 @@ Scripts\verify.bat -t -build -catalog
 Scripts\rundev.bat
 ```
 
-验收参数见 `.agent/skills/mlsmoon-verify/SKILL.md`（`-t -install` / `-gh` / `-ui` …）。不要为了绿补 mock 单测。
+验收参数见 `.agent/skills/mlsmoon-verify/SKILL.md`（`-t -install` / `-gh` / `-ui` / `-size` …）。不要为了绿补 mock 单测。维护约定按模块拆在 `.agent/skills/mlsmoon-*`；收工对照 `mlsmoon-self-iterate`。
 
 `rundev` 走 Debug + `--dev`，右上角有橙色 **DEV** 标记。DEV 和安装/便携 exe 各只允许一个实例，但可以同时开各一个。`Scripts` 里每个 `.ps1` 都有同名 `.bat`，双击即可。
 
@@ -131,9 +131,10 @@ Scripts\build_installer.bat
 安装位置：
 
 ```
-{workspace}/.agent/skills/{skill-id}/
-{workspace}/.claude/skills/{skill-id}/   # 若勾选且目录存在或允许创建
+{workspace}/.agents/skills/{skill-id}/   # 默认；旧 .agent/skills 视为同一目标
+{workspace}/.claude/skills/{skill-id}/
 {workspace}/.grok/skills/{skill-id}/
+{workspace}/.codex/skills/{skill-id}/    # 旧版 Codex skill
 {workspace}/Assets/Plugins/{plugin-id}/  # Plugin，可用 installPath 覆盖
 ```
 

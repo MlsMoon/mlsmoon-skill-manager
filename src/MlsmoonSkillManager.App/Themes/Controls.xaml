@@ -1050,18 +1050,7 @@
                             </VisualStateGroup>
                             <VisualStateGroup x:Name="LoadStates">
                                 <VisualState x:Name="Ready"/>
-                                <VisualState x:Name="Loading">
-                                    <Storyboard RepeatBehavior="Forever">
-                                        <DoubleAnimation Storyboard.TargetName="LoadSlide"
-                                                         Storyboard.TargetProperty="X"
-                                                         From="-180" To="760"
-                                                         Duration="0:0:1.35">
-                                            <DoubleAnimation.EasingFunction>
-                                                <QuinticEase EasingMode="EaseInOut"/>
-                                            </DoubleAnimation.EasingFunction>
-                                        </DoubleAnimation>
-                                    </Storyboard>
-                                </VisualState>
+                                <VisualState x:Name="Loading"/>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                         <Grid>
@@ -1071,19 +1060,37 @@
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
                             <Border x:Name="LoadTrack"
-                                    Background="{DynamicResource SubtleBrush}"
+                                    Background="Transparent"
                                     CornerRadius="{StaticResource RadiusSurface}"
                                     Visibility="Collapsed"
-                                    ClipToBounds="True"
-                                    MinHeight="48">
-                                <Border Width="160"
-                                        HorizontalAlignment="Left"
-                                        Background="{DynamicResource AccentBrush}"
-                                        Opacity="0.45">
-                                    <Border.RenderTransform>
-                                        <TranslateTransform x:Name="LoadSlide" X="-180"/>
-                                    </Border.RenderTransform>
-                                </Border>
+                                    Padding="{TemplateBinding Padding}"
+                                    MinHeight="56">
+                                <DockPanel>
+                                    <ProgressBar DockPanel.Dock="Bottom"
+                                                 Height="8"
+                                                 Minimum="0"
+                                                 Maximum="100"
+                                                 IsIndeterminate="False"
+                                                 Value="{TemplateBinding LoadProgress}"
+                                                 Background="{DynamicResource SubtleBrush}"
+                                                 Margin="0,8,0,0"/>
+                                    <TextBlock DockPanel.Dock="Right"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Bottom"
+                                               Style="{StaticResource Caption}"
+                                               Text="{Binding LoadProgress, RelativeSource={RelativeSource TemplatedParent}, StringFormat={}{0:0}%}"/>
+                                    <StackPanel>
+                                        <TextBlock Text="{TemplateBinding Header}"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Margin="0,4,0,0"
+                                                   Style="{StaticResource Caption}"
+                                                   Text="{TemplateBinding LoadText}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </DockPanel>
                             </Border>
                             <DockPanel x:Name="Body" Margin="{TemplateBinding Padding}">
                             <ContentPresenter DockPanel.Dock="Right"
