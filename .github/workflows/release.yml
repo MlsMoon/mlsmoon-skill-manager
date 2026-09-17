@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build EXE installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require tag commit is on release
+        shell: pwsh
+        run: |
+          git fetch origin release
+          $sha = "${{ github.sha }}"
+          git merge-base --is-ancestor $sha origin/release
+          if ($LASTEXITCODE -ne 0) {
+            throw "GitHub 打包只接受 release 分支上的 tag。$sha 不在 origin/release。"
+          }
+
+      - name: Read VERSION
+        id: version
+        shell: pwsh
+        run: |
+          $v = (Get-Content -Raw VERSION).Trim()
+          if (-not $v) { throw "VERSION is empty" }
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Check tag matches VERSION
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $expected = "v${{ steps.version.outputs.version }}"
+          if ($tag -ne $expected) {
+            throw "Tag $tag must equal $expected (VERSION file is the single source)"
+          }
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build portable EXE
+        shell: pwsh
+        run: ./Scripts/build.ps1
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: ./Scripts/build_installer.ps1 -Version "${{ steps.version.outputs.version }}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MlsmoonSkillManager-setup
+          path: |
+            dist/MlsmoonSkillManager.exe
+            dist/MlsmoonSkillManager-Setup-${{ steps.version.outputs.version }}.exe
+          if-no-files-found: error
+
+      - name: Extract release notes
+        shell: pwsh
+        run: ./Scripts/release_notes.ps1 -Version "${{ steps.version.outputs.version }}" -Output release-notes.md
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Moon Game Dev Tool Manager ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          generate_release_notes: false
+          files: |
+            dist/MlsmoonSkillManager.exe
+            dist/MlsmoonSkillManager-Setup-${{ steps.version.outputs.version }}.exe
+          fail_on_unmatched_files: true

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "owner": "MlsMoon",
+  "skills": [
+    {
+      "id": "open-psd-kit",
+      "name": "open-psd-kit",
+      "repo": "https://github.com/MlsMoon/open-psd-kit",
+      "description": "读取与修改 PSD/PSB 图层、像素、可见性与合成导出。",
+      "sourcePath": ".",
+      "installName": "open-psd-kit",
+      "engines": ["all"]
+    },
+    {
+      "id": "unity-operate-vfx-graph",
+      "name": "unity-operate-vfx-graph",
+      "repo": "https://github.com/MlsMoon/unity-operate-vfx-graph",
+      "description": "用标准库 Python 读写 Unity Visual Effect Graph 的 .vfx。",
+      "sourcePath": ".",
+      "installName": "unity-operate-vfx-graph",
+      "engines": ["unity"]
+    },
+    {
+      "id": "3d-model-data-reader",
+      "name": "3d-model-data-reader",
+      "repo": "https://github.com/MlsMoon/3d-model-data-reader",
+      "description": "读取并检查 OBJ/FBX 顶点、法线、UV、骨骼与节点树。",
+      "sourcePath": ".",
+      "installName": "3d-model-data-reader",
+      "engines": ["all"]
+    }
+  ],
+  "plugins": [
+    {
+      "id": "spine-gpu-skinning",
+      "name": "SpineGpuSkinning",
+      "repo": "https://github.com/MlsMoon/SpineGpuSkinning",
+      "description": "spine-unity 4.2 / URP 的 GPU 蒙皮插件。安装到工作区 Assets/Plugins/SpineGpuSkinning。",
+      "sourcePath": ".",
+      "installName": "SpineGpuSkinning",
+      "installPath": "Assets/Plugins/SpineGpuSkinning",
+      "engines": ["unity"],
+      "companionSkills": [
+        {
+          "id": "gpuspine-use-plugin",
+          "name": "gpuspine-use-plugin",
+          "description": "在宿主项目中接入 SpineGpuSkinning。随插件写入 Skill 目标，不能单独当 Skill 安装。",
+          "sourcePath": "Skills~/gpuspine-use-plugin",
+          "installName": "gpuspine-use-plugin"
+        },
+        {
+          "id": "gpuspine-develop-plugin",
+          "name": "gpuspine-develop-plugin",
+          "description": "维护 SpineGpuSkinning 插件本体。随插件写入 Skill 目标，不能单独当 Skill 安装。",
+          "sourcePath": "Skills~/gpuspine-develop-plugin",
+          "installName": "gpuspine-develop-plugin"
+        }
+      ]
+    }
+  ]
+}

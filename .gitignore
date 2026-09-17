@@ -1,0 +1,17 @@
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+bin/
+obj/
+dist/
+publish/
+TestResults/
+*.DotSettings.user
+*.log
+app.ico.bak
+catalog/skills.override.json
+.DS_Store
+Thumbs.db
+.htybox/

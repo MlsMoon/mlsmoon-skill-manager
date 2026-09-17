@@ -1,0 +1,536 @@
+<Window x:Class="MlsmoonSkillManager.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:ui="clr-namespace:MlsmoonSkillManager.App.Controls"
+        xmlns:vm="clr-namespace:MlsmoonSkillManager.App.ViewModels"
+        xmlns:conv="clr-namespace:MlsmoonSkillManager.App.Converters"
+        Title="{Binding WindowTitle}"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Background="{DynamicResource BgBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        Height="760" Width="1180" MinHeight="600" MinWidth="1040">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="48"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False"
+                            ResizeBorderThickness="6"/>
+    </shell:WindowChrome.WindowChrome>
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="VisibleIfTrue"/>
+        <conv:BoolToVisibilityConverter x:Key="VisibleIfFalse" Invert="True"/>
+    </Window.Resources>
+    <Grid>
+        <Grid.Background>
+            <DynamicResource ResourceKey="BgBrush"/>
+        </Grid.Background>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Title="Moon Game Dev Tool Manager">
+            <ui:TitleBar.Extra>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <ui:Badge Appearance="Dev" Content="DEV" Margin="0,0,8,0"
+                              Visibility="{Binding IsDev, Converter={StaticResource VisibleIfTrue}}"/>
+                    <TextBlock Style="{StaticResource Caption}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,4,0"
+                               Text="{Binding Version, StringFormat=v{0}}"/>
+                    <Grid>
+                        <Button Style="{StaticResource CaptionButton}"
+                                ToolTip="设置"
+                                AutomationProperties.Name="设置"
+                                Command="{Binding OpenSettingsCommand}">
+                            <TextBlock FontFamily="{DynamicResource FluentIconFont}"
+                                       FontSize="12"
+                                       Text="&#xE713;"/>
+                        </Button>
+                        <ui:Badge Appearance="Accent" Content="新"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Top"
+                                  Margin="0,4,2,0"
+                                  IsHitTestVisible="False"
+                                  Visibility="{Binding HasAppUpdate, Converter={StaticResource VisibleIfTrue}}"/>
+                    </Grid>
+                </StackPanel>
+            </ui:TitleBar.Extra>
+        </ui:TitleBar>
+
+        <Grid Grid.Row="1" Background="{DynamicResource BgBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <DockPanel Margin="16,10,16,8">
+                <ui:Surface DockPanel.Dock="Top" Header="当前工作区" Margin="0,0,0,12">
+                    <ui:Surface.HeaderAction>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Style="{StaticResource PrimaryButton}"
+                                    Content="刷新权限"
+                                    Command="{Binding RefreshCommand}"/>
+                            <TextBox Style="{StaticResource SearchBox}"
+                                     Width="220"
+                                     Margin="0"
+                                     Tag="筛选名称、描述或类型"
+                                     Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                    </ui:Surface.HeaderAction>
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,10"
+                                   Text="{Binding BrowseOnlyHint}"
+                                   Visibility="{Binding IsBrowseOnly, Converter={StaticResource VisibleIfTrue}}"/>
+                        <ui:FieldRow Header="路径">
+                            <TextBlock Text="{Binding WorkspaceDisplay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding WorkspacePath}"/>
+                        </ui:FieldRow>
+                        <ui:FieldRow Header="Skill 目标" Margin="0">
+                            <StackPanel>
+                                <ItemsControl ItemsSource="{Binding Roots}"
+                                              IsEnabled="{Binding HasOpenWorkspace}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:RootOptionViewModel}">
+                                            <CheckBox IsChecked="{Binding IsSelected}" Checked="RootChanged" Unchecked="RootChanged">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Label}"/>
+                                                    <TextBlock Text="{Binding Badge, StringFormat= · {0}}"
+                                                               Style="{StaticResource Caption}"/>
+                                                </StackPanel>
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Margin="0,6,0,0" Style="{StaticResource Caption}"
+                                           Text="Plugin 固定安装到工作区的 Assets/Plugins，不受上面勾选影响。"/>
+                            </StackPanel>
+                        </ui:FieldRow>
+                    </StackPanel>
+                </ui:Surface>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="268"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ui:Surface Grid.Column="0" Header="工作区"
+                                Background="{DynamicResource SidebarBrush}">
+                        <ui:Surface.HeaderAction>
+                            <Button Style="{StaticResource GhostButton}" Content="添加"
+                                    Command="{Binding BrowseCommand}" Margin="0"/>
+                        </ui:Surface.HeaderAction>
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Caption}" Margin="0,0,0,10"
+                                       Text="点击切换。每个工作区会记住自己的安装目标。"
+                                       Visibility="{Binding HasWorkspaces, Converter={StaticResource VisibleIfTrue}}"/>
+                            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Caption}"
+                                       Text="还没有工作区。点「添加」选择一个项目根目录。"
+                                       Visibility="{Binding HasWorkspaces, Converter={StaticResource VisibleIfFalse}}"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Workspaces}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:WorkspaceItemViewModel}">
+                                            <ui:NavRow Title="{Binding Name}"
+                                                       Detail="{Binding Status}"
+                                                       IsActive="{Binding IsSelected}"
+                                                       DetailIsError="{Binding IsMissing}"
+                                                       Command="{Binding DataContext.SelectWorkspaceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       CommandParameter="{Binding}"
+                                                       RemoveCommand="{Binding DataContext.RemoveWorkspaceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       RemoveCommandParameter="{Binding}"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </ui:Surface>
+
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding VisibleSkills}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:SkillRowViewModel}">
+                                    <ui:ItemCard Header="{Binding Name}"
+                                                 Description="{Binding Description}"
+                                                 ShowDescription="{Binding ShowDetails}"
+                                                 IsNested="{Binding IsCompanion}">
+                                        <ui:ItemCard.Badge>
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Badge Content="{Binding KindLabel}"
+                                                          Appearance="{Binding KindAppearance}"
+                                                          Margin="0,0,6,0"/>
+                                                <ItemsControl ItemsSource="{Binding EngineTags}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="{x:Type vm:EngineTagViewModel}">
+                                                            <ui:Badge Content="{Binding Label}"
+                                                                      Appearance="{Binding Appearance}"
+                                                                      Margin="0,0,6,0"/>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </ui:ItemCard.Badge>
+                                        <ui:ItemCard.Status>
+                                            <ui:StatusLabel Text="{Binding AccessText}"
+                                                            Tone="{Binding AccessTone}"/>
+                                        </ui:ItemCard.Status>
+                                        <ui:ItemCard.Actions>
+                                            <StackPanel Orientation="Horizontal"
+                                                        Visibility="{Binding DataContext.HasOpenWorkspace, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleIfTrue}}">
+                                                <Button Style="{StaticResource PrimaryButton}" Content="安装"
+                                                        IsEnabled="{Binding Access.CanInstall}"
+                                                        Visibility="{Binding ShowInstall, Converter={StaticResource VisibleIfTrue}}"
+                                                        Command="{Binding DataContext.InstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource GhostButton}"
+                                                        Content="{Binding UpdateLabel}"
+                                                        Visibility="{Binding ShowUpdate, Converter={StaticResource VisibleIfTrue}}"
+                                                        Command="{Binding DataContext.UpdateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource GhostButton}" Content="打开目录"
+                                                        Visibility="{Binding ShowOpenFolder, Converter={StaticResource VisibleIfTrue}}"
+                                                        Command="{Binding DataContext.OpenInstallFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource DangerButton}" Content="卸载"
+                                                        Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </ui:ItemCard.Actions>
+                                        <StackPanel>
+                                            <DockPanel Margin="0,8,0,0"
+                                                       Visibility="{Binding ShowBranchPicker, Converter={StaticResource VisibleIfTrue}}">
+                                                <TextBlock DockPanel.Dock="Left"
+                                                           Style="{StaticResource Caption}"
+                                                           Width="36"
+                                                           VerticalAlignment="Center"
+                                                           Text="分支"/>
+                                                <ComboBox ItemsSource="{Binding Branches}"
+                                                          SelectedItem="{Binding SelectedBranch, Mode=TwoWay}"
+                                                          HorizontalAlignment="Left"/>
+                                            </DockPanel>
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource BadBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Text="{Binding Git.Warning}"
+                                                       Visibility="{Binding ShowBranchWarning, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <ui:StatusLabel Margin="0,8,0,0"
+                                                            Text="{Binding GitStatusText}"
+                                                            Tone="{Binding GitStatusTone}"
+                                                            Visibility="{Binding ShowGitStatus, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <TextBlock Margin="0,6,0,0"
+                                                       FontFamily="Cascadia Mono, Consolas, monospace"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource MutedBrush}"
+                                                       Text="{Binding LocalChangesText}"
+                                                       Visibility="{Binding ShowLocalChanges, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                                       Text="{Binding CompanionHint}"
+                                                       Visibility="{Binding ShowCompanionHint, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                                       Text="{Binding ParentHint}"
+                                                       Visibility="{Binding IsCompanion, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                                       Text="{Binding Repo}"
+                                                       Visibility="{Binding DataContext.ShowRepoLinks, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource BadBrush}"
+                                                       Text="{Binding Access.Message}"
+                                                       Visibility="{Binding DeniedOnly, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                                       Text="{Binding InstallSummary}"/>
+                                        </StackPanel>
+                                    </ui:ItemCard>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </DockPanel>
+
+            <Border Grid.Row="1" Style="{StaticResource StatusBar}">
+                <TextBlock Style="{StaticResource Caption}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding LastLogLine}"
+                           ToolTip="{Binding LastLogLine}"/>
+            </Border>
+        </Grid>
+
+        <ui:AppDialog Grid.RowSpan="2"
+                      Header="设置"
+                      CardMaxWidth="800"
+                      IsOpen="{Binding IsSettingsOpen, Mode=TwoWay}"
+                      PrimaryText="完成">
+            <Grid Height="460">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="148"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Background="{DynamicResource SidebarBrush}"
+                        CornerRadius="8"
+                        Padding="8">
+                    <ItemsControl ItemsSource="{Binding SettingsTabs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:SettingsTabViewModel}">
+                                <Button Content="{Binding Label}"
+                                        Command="{Binding DataContext.SelectSettingsTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource SettingsNav}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource ThemeSelectedBrush}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+                <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <StackPanel Visibility="{Binding IsSettingsAppearance, Converter={StaticResource VisibleIfTrue}}">
+                            <TextBlock Style="{StaticResource SectionTitle}" Margin="0,0,0,8" Text="外观"/>
+                            <ui:FieldRow Header="主题" LabelWidth="96">
+                                <Border Style="{StaticResource Segmented}" Margin="0">
+                                    <ItemsControl ItemsSource="{Binding Themes}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:ThemeOptionViewModel}">
+                                                <Button Content="{Binding Label}"
+                                                        Command="{Binding DataContext.SelectThemeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource ThemeButton}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource ThemeSelectedBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="卡片" LabelWidth="96" Margin="0">
+                                <CheckBox IsChecked="{Binding ShowRepoLinks, Mode=TwoWay}"
+                                          Content="在卡片上显示仓库地址"
+                                          Margin="0"/>
+                            </ui:FieldRow>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding IsSettingsConnection, Converter={StaticResource VisibleIfTrue}}">
+                            <TextBlock Style="{StaticResource SectionTitle}" Margin="0,0,0,8" Text="连接"/>
+                            <ui:FieldRow Header="GitHub" LabelWidth="96">
+                                <ui:StatusLabel Text="{Binding GhStatus}" Tone="{Binding GhTone}"/>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="局域网" LabelWidth="96">
+                                <ui:StatusLabel Text="{Binding IgpStatus}" Tone="{Binding IgpTone}"/>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="NAS" LabelWidth="96">
+                                <ui:StatusLabel Text="{Binding NasStatus}" Tone="{Binding NasTone}"/>
+                            </ui:FieldRow>
+                            <TextBlock Style="{StaticResource Caption}"
+                                       Margin="0,0,0,10"
+                                       Text="NAS 网络可达但 SSH 要密码或密钥时，会显示「需要密码或密钥」，这和完全连不上不是一回事。应用不会弹出密码。"/>
+                            <ui:FieldRow Header="NAS 用户" LabelWidth="96">
+                                <TextBox Text="{Binding NasUser, UpdateSourceTrigger=PropertyChanged}"
+                                         MinWidth="180"/>
+                            </ui:FieldRow>
+                            <Button Style="{StaticResource PrimaryButton}"
+                                    Content="重新检查连接"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding RefreshCommand}"/>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding IsSettingsUpdates, Converter={StaticResource VisibleIfTrue}}">
+                            <TextBlock Style="{StaticResource SectionTitle}" Margin="0,0,0,8" Text="更新"/>
+                            <ui:FieldRow Header="当前" LabelWidth="96">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock VerticalAlignment="Center"
+                                               Text="{Binding Version, StringFormat=v{0}}"/>
+                                    <ui:Badge Appearance="Dev" Content="DEV" Margin="8,0,0,0"
+                                              Visibility="{Binding IsDev, Converter={StaticResource VisibleIfTrue}}"/>
+                                </StackPanel>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="状态" LabelWidth="96">
+                                <TextBlock Style="{StaticResource Caption}"
+                                           Text="{Binding UpdateStatus}"
+                                           TextWrapping="Wrap"/>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="自动检查" LabelWidth="96" Margin="0,0,0,10">
+                                <CheckBox IsChecked="{Binding AutoCheckUpdates, Mode=TwoWay}"
+                                          Content="启动时检查 GitHub Release"
+                                          Margin="0"/>
+                            </ui:FieldRow>
+                            <TextBlock Style="{StaticResource Caption}"
+                                       Margin="0,0,0,10"
+                                       Text="只安装 release 分支上打了 vX.Y.Z 标签后发布的 Setup 包。DEV 不会覆盖本机安装。"
+                                       Visibility="{Binding IsDev, Converter={StaticResource VisibleIfTrue}}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource PrimaryButton}"
+                                        Content="检查更新"
+                                        Command="{Binding CheckUpdatesCommand}"/>
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="下载并安装"
+                                        Command="{Binding InstallAppUpdateCommand}"/>
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="打开 Release"
+                                        Command="{Binding OpenLatestReleaseCommand}"
+                                        Margin="0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding IsSettingsFolders, Converter={StaticResource VisibleIfTrue}}">
+                            <TextBlock Style="{StaticResource SectionTitle}" Margin="0,0,0,8" Text="位置"/>
+                            <ui:FieldRow Header="设置" LabelWidth="96">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}"
+                                            Content="打开" Margin="0" Command="{Binding OpenConfigFolderCommand}"/>
+                                    <TextBlock Style="{StaticResource Caption}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Text="{Binding ConfigPath}"/>
+                                </DockPanel>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="覆盖清单" LabelWidth="96">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}"
+                                            Content="打开" Margin="0" Command="{Binding OpenOverrideCommand}"/>
+                                    <TextBlock Style="{StaticResource Caption}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Text="{Binding OverridePath}"/>
+                                </DockPanel>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="公开清单" LabelWidth="96">
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="打开 catalog"
+                                        Command="{Binding OpenCatalogCommand}"
+                                        Margin="0"/>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="克隆缓存" LabelWidth="96">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource GhostButton}"
+                                            Content="打开"
+                                            Command="{Binding OpenCacheFolderCommand}"/>
+                                    <Button Style="{StaticResource DangerButton}"
+                                            Content="清空"
+                                            Command="{Binding ClearCacheCommand}"
+                                            Margin="0"/>
+                                </StackPanel>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="工作区" LabelWidth="96" Margin="0">
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="打开当前文件夹"
+                                        Command="{Binding OpenWorkspaceFolderCommand}"
+                                        Margin="0"/>
+                            </ui:FieldRow>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding IsSettingsAbout, Converter={StaticResource VisibleIfTrue}}">
+                            <TextBlock Style="{StaticResource SectionTitle}" Margin="0,0,0,8" Text="关于"/>
+                            <ui:FieldRow Header="版本" LabelWidth="96">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock VerticalAlignment="Center"
+                                               Text="{Binding Version, StringFormat=v{0}}"/>
+                                    <ui:Badge Appearance="Dev" Content="DEV" Margin="8,0,0,0"
+                                              Visibility="{Binding IsDev, Converter={StaticResource VisibleIfTrue}}"/>
+                                </StackPanel>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="仓库" LabelWidth="96">
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="在 GitHub 打开"
+                                        Command="{Binding OpenProductRepoCommand}"
+                                        Margin="0"/>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="诊断" LabelWidth="96" Margin="0">
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="复制版本、主题、工作区和连接状态"
+                                        Command="{Binding CopyDiagnosticsCommand}"
+                                        Margin="0"/>
+                            </ui:FieldRow>
+                        </StackPanel>
+
+                        <DockPanel Visibility="{Binding IsSettingsLog, Converter={StaticResource VisibleIfTrue}}">
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="复制"
+                                        Command="{Binding CopyLogCommand}"/>
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="清空"
+                                        Command="{Binding ClearLogCommand}"
+                                        Margin="0"/>
+                            </StackPanel>
+                            <TextBox Style="{StaticResource LogBox}"
+                                     MinHeight="320"
+                                     Text="{Binding LogText}"
+                                     IsReadOnly="True"
+                                     TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     AcceptsReturn="True"/>
+                        </DockPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+        </ui:AppDialog>
+
+        <ui:AppDialog Grid.RowSpan="2"
+                      Header="无法自动更新"
+                      CardMaxWidth="520"
+                      IsOpen="{Binding IsConflictOpen, Mode=TwoWay}"
+                      PrimaryText="知道了"
+                      SecondaryText="打开安装目录"
+                      SecondaryCommand="{Binding OpenConflictFolderCommand}">
+            <TextBlock TextWrapping="Wrap"
+                       Text="{Binding ConflictText}"/>
+        </ui:AppDialog>
+
+        <ui:AppDialog Grid.RowSpan="2"
+                      Header="日志"
+                      IsOpen="{Binding IsLogOpen, Mode=TwoWay}"
+                      PrimaryText="关闭"
+                      SecondaryText="复制"
+                      SecondaryCommand="{Binding CopyLogCommand}">
+            <TextBox Style="{StaticResource LogBox}"
+                     MinHeight="320"
+                     MaxHeight="420"
+                     Text="{Binding LogText}"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     AcceptsReturn="True"/>
+        </ui:AppDialog>
+    </Grid>
+</Window>

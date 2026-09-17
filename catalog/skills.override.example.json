@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "id": "your-public-skill",
+      "name": "your-public-skill",
+      "repo": "https://github.com/MlsMoon/your-public-skill",
+      "description": "公开 GitHub 仓库可以写在这份 example 里当格式参考。",
+      "sourcePath": ".",
+      "installName": "your-public-skill",
+      "engines": ["all"]
+    }
+  ],
+  "plugins": [
+    {
+      "id": "your-public-plugin",
+      "name": "your-public-plugin",
+      "repo": "https://github.com/MlsMoon/your-public-plugin",
+      "description": "公开 Plugin 的格式示例。安装到 Assets/Plugins，与 Skill 的 .agent/skills 分开。",
+      "sourcePath": ".",
+      "installName": "YourPublicPlugin",
+      "installPath": "Assets/Plugins/YourPublicPlugin",
+      "engines": ["unity"],
+      "companionSkills": [
+        {
+          "id": "your-plugin-use",
+          "name": "your-plugin-use",
+          "description": "随插件写入 Skill 目标，不要单独放进 skills 数组。",
+          "sourcePath": "Skills~/your-plugin-use",
+          "installName": "your-plugin-use"
+        }
+      ]
+    },
+    {
+      "id": "your-lan-plugin",
+      "name": "YourLanPlugin",
+      "source": "lan",
+      "repo": "ssh://<nas-host>:<git-path>",
+      "host": "<nas-host>",
+      "gitPath": "<git-path>",
+      "readmePath": "Readme.md",
+      "description": "局域网包的字段格式。真实 host 只写同目录已被 gitignore 的 skills.override.json。",
+      "sourcePath": ".",
+      "installName": "YourLanPlugin",
+      "installPath": "Packages/YourLanPlugin",
+      "engines": ["unity"],
+      "branches": [
+        {
+          "name": "main",
+          "unity": "6000",
+          "manifest": {
+            "com.example.lan": "file:YourLanPlugin/com.example.lan"
+          }
+        }
+      ]
+    }
+  ]
+}
