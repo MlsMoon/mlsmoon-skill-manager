@@ -8,6 +8,27 @@ GitHub Release 正文只从本文件抽取对应版本段落。每个已发布�
 
 写用户能感知的变化。不要只放 `Full Changelog: vA...vB` 那种对比链接。发版脚本见 `Scripts/release_notes.ps1`。
 
+## [0.2.3] - 2026-09-17
+
+公开 catalog 不再收录局域网地址。这是仓库历史重置后的第一个 GitHub Release。
+
+### Catalog
+
+- 公开 `catalog/skills.json` 只收 GitHub 上的 Skill / Plugin。
+- 局域网条目写本机已 gitignore 的 `catalog/skills.override.json`，不进公开仓库。
+- 公开仓库的覆盖格式写在 `catalog/skills.override.example.json`。
+- 安装包和便携 `catalog` 都不带真实覆盖文件。
+
+### 安装器
+
+- Setup 向导始终出现「选择目标位置」。已经装过时也会显示，并预填上次路径。
+- 默认目录仍是 `%LocalAppData%\MlsmoonSkillManager`。当前用户权限，选不到需要管理员的 `Program Files`。
+
+### 发布说明
+
+- GitHub Release 正文来自本文件对应版本段落。
+- 不再把自动生成的对比链接当作唯一说明。
+
 ## [0.2.2] - 2026-09-17
 
 安装器可以选目录。Release 说明改为仓库里的手写 changelog。局域网包改走本机 override。
