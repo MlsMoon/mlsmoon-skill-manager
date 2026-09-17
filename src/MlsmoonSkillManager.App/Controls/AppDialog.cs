@@ -47,6 +47,12 @@ public class AppDialog : HeaderedContentControl
         typeof(AppDialog),
         new PropertyMetadata(640.0));
 
+    public static readonly DependencyProperty CardMinWidthProperty = DependencyProperty.Register(
+        nameof(CardMinWidth),
+        typeof(double),
+        typeof(AppDialog),
+        new PropertyMetadata(440.0));
+
     static AppDialog() => ThemeChrome.Default<AppDialog>();
 
     public AppDialog() => ThemeChrome.UseAppStyle(this);
@@ -91,6 +97,12 @@ public class AppDialog : HeaderedContentControl
     {
         get => (double)GetValue(CardMaxWidthProperty);
         set => SetValue(CardMaxWidthProperty, value);
+    }
+
+    public double CardMinWidth
+    {
+        get => (double)GetValue(CardMinWidthProperty);
+        set => SetValue(CardMinWidthProperty, value);
     }
 
     public void Close() => IsOpen = false;

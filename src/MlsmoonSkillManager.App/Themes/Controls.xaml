@@ -9,6 +9,8 @@
     <FontFamily x:Key="FluentIconFont">Segoe MDL2 Assets, Segoe Fluent Icons</FontFamily>
     <Duration x:Key="MotionFast">0:0:0.083</Duration>
     <Duration x:Key="MotionNormal">0:0:0.167</Duration>
+    <CornerRadius x:Key="RadiusControl">2</CornerRadius>
+    <CornerRadius x:Key="RadiusSurface">3</CornerRadius>
 
     <Style TargetType="Control">
         <Setter Property="Background" Value="Transparent"/>
@@ -44,7 +46,7 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6"
+                            CornerRadius="{StaticResource RadiusControl}"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter/>
                     </Border>
@@ -64,7 +66,7 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6"
+                            CornerRadius="{StaticResource RadiusControl}"
                             Padding="4">
                         <StackPanel IsItemsHost="True"/>
                     </Border>
@@ -79,7 +81,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
-                    <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="10,6" CornerRadius="4">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="10,6" CornerRadius="{StaticResource RadiusControl}">
                         <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -112,7 +114,7 @@
                 <ControlTemplate TargetType="Thumb">
                     <Border x:Name="Bd"
                             Background="{DynamicResource MutedBrush}"
-                            CornerRadius="4"
+                            CornerRadius="{StaticResource RadiusControl}"
                             Margin="1"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -197,7 +199,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
         <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
         <Setter Property="SelectionBrush" Value="{DynamicResource AccentSubtleBrush}"/>
-        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="Padding" Value="8,5"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -205,7 +207,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="6"
+                            CornerRadius="{StaticResource RadiusControl}"
                             SnapsToDevicePixels="True">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
@@ -234,7 +236,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="6">
+                            CornerRadius="{StaticResource RadiusControl}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -246,18 +248,18 @@
                                        FontSize="12"
                                        Foreground="{DynamicResource MutedBrush}"
                                        VerticalAlignment="Center"
-                                       Margin="10,0,0,0"
+                                       Margin="8,0,0,0"
                                        IsHitTestVisible="False"/>
                             <TextBlock x:Name="Ph"
                                        Grid.Column="1"
                                        Text="{TemplateBinding Tag}"
                                        Foreground="{DynamicResource MutedBrush}"
                                        VerticalAlignment="Center"
-                                       Margin="8,0,10,0"
+                                       Margin="6,0,8,0"
                                        IsHitTestVisible="False"/>
                             <ScrollViewer x:Name="PART_ContentHost"
                                           Grid.Column="1"
-                                          Margin="8,7,10,7"
+                                          Margin="6,5,8,5"
                                           Background="Transparent"
                                           Foreground="{TemplateBinding Foreground}"/>
                         </Grid>
@@ -281,71 +283,48 @@
 
     <Style x:Key="LogBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Padding" Value="8,6"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
     </Style>
 
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-        <Setter Property="Margin" Value="0,0,8,8"/>
+        <Setter Property="Margin" Value="0,0,10,4"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <Border x:Name="Bd"
-                            Background="{DynamicResource ChipBrush}"
-                            BorderBrush="{DynamicResource LineBrush}"
-                            BorderThickness="1"
-                            CornerRadius="14">
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal">
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
-                                                         Storyboard.TargetProperty="Opacity"
-                                                         To="0" Duration="{StaticResource MotionFast}">
-                                            <DoubleAnimation.EasingFunction>
-                                                <QuinticEase EasingMode="EaseOut"/>
-                                            </DoubleAnimation.EasingFunction>
-                                        </DoubleAnimation>
-                                    </Storyboard>
-                                </VisualState>
-                                <VisualState x:Name="MouseOver">
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
-                                                         Storyboard.TargetProperty="Opacity"
-                                                         To="1" Duration="{StaticResource MotionNormal}">
-                                            <DoubleAnimation.EasingFunction>
-                                                <QuinticEase EasingMode="EaseOut"/>
-                                            </DoubleAnimation.EasingFunction>
-                                        </DoubleAnimation>
-                                    </Storyboard>
-                                </VisualState>
-                                <VisualState x:Name="Pressed">
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetName="HoverLayer"
-                                                         Storyboard.TargetProperty="Opacity"
-                                                         To="1" Duration="{StaticResource MotionFast}"/>
-                                    </Storyboard>
-                                </VisualState>
-                                <VisualState x:Name="Disabled"/>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
-                        <Grid>
-                            <Border x:Name="HoverLayer"
-                                    CornerRadius="14"
-                                    Background="{DynamicResource OverlayHoverBrush}"
-                                    Opacity="0"
-                                    IsHitTestVisible="False"/>
-                            <ContentPresenter VerticalAlignment="Center" Margin="12,6"/>
-                        </Grid>
-                    </Border>
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="Bd"
+                                Width="16"
+                                Height="16"
+                                Background="{DynamicResource FieldBrush}"
+                                BorderBrush="{DynamicResource LineBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusControl}"
+                                VerticalAlignment="Center">
+                            <TextBlock x:Name="Mark"
+                                       FontFamily="{DynamicResource FluentIconFont}"
+                                       Text="&#xE73E;"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource MutedBrush}"/>
+                        </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="Mark" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45"/>
@@ -373,7 +352,7 @@
     <Style TargetType="ComboBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="Padding" Value="8,5"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -381,7 +360,7 @@
                     <Border x:Name="Bd"
                             Background="{TemplateBinding Background}"
                             Padding="{TemplateBinding Padding}"
-                            CornerRadius="4">
+                            CornerRadius="{StaticResource RadiusControl}">
                         <ContentPresenter/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -405,8 +384,8 @@
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="10,6"/>
-        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="MinHeight" Value="28"/>
         <Setter Property="MinWidth" Value="160"/>
         <Setter Property="MaxDropDownHeight" Value="240"/>
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
@@ -420,7 +399,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
+                                CornerRadius="{StaticResource RadiusControl}">
                             <DockPanel Margin="{TemplateBinding Padding}">
                                 <TextBlock DockPanel.Dock="Right"
                                            FontFamily="{DynamicResource FluentIconFont}"
@@ -451,7 +430,7 @@
                                     Background="{DynamicResource PanelBrush}"
                                     BorderBrush="{DynamicResource LineBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="6"
+                                    CornerRadius="{StaticResource RadiusControl}"
                                     Padding="4"
                                     RenderTransformOrigin="0.5,0">
                                 <Border.RenderTransform>
@@ -549,10 +528,11 @@
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="14,7"/>
-        <Setter Property="Margin" Value="0,0,8,0"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -560,7 +540,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6"
+                            CornerRadius="{StaticResource RadiusControl}"
                             SnapsToDevicePixels="True">
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
@@ -638,12 +618,12 @@
                         </Border.RenderTransform>
                         <Grid>
                             <Border x:Name="HoverLayer"
-                                    CornerRadius="6"
+                                    CornerRadius="{StaticResource RadiusControl}"
                                     Background="{DynamicResource OverlayHoverBrush}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
                             <Border x:Name="PressLayer"
-                                    CornerRadius="6"
+                                    CornerRadius="{StaticResource RadiusControl}"
                                     Background="{DynamicResource OverlayPressedBrush}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
@@ -658,11 +638,35 @@
         </Setter>
     </Style>
 
+    <Style TargetType="ProgressBar">
+        <Setter Property="Height" Value="8"/>
+        <Setter Property="Minimum" Value="0"/>
+        <Setter Property="Maximum" Value="100"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SubtleBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border x:Name="PART_Track"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="{StaticResource RadiusControl}"
+                            Height="{TemplateBinding Height}">
+                        <Decorator x:Name="PART_Indicator" HorizontalAlignment="Left">
+                            <Border Background="{TemplateBinding Foreground}" CornerRadius="{StaticResource RadiusControl}"/>
+                        </Decorator>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="Button" BasedOn="{StaticResource FluentButton}"/>
 
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource FluentButton}">
         <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
     <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource FluentButton}">
@@ -677,9 +681,9 @@
 
     <Style x:Key="ThemeButton" TargetType="Button" BasedOn="{StaticResource FluentButton}">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="Padding" Value="10,4"/>
         <Setter Property="Margin" Value="0"/>
-        <Setter Property="MinWidth" Value="52"/>
+        <Setter Property="MinWidth" Value="48"/>
         <Setter Property="FontWeight" Value="Normal"/>
     </Style>
 
@@ -693,8 +697,8 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
-        <Setter Property="Padding" Value="12,8"/>
-        <Setter Property="Margin" Value="0,0,0,4"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Margin" Value="0,0,0,2"/>
         <Setter Property="FontWeight" Value="Normal"/>
     </Style>
 
@@ -722,7 +726,7 @@
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-        <Setter Property="Padding" Value="8,8,8,8"/>
+        <Setter Property="Padding" Value="6,6,6,6"/>
         <Setter Property="Margin" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
@@ -732,7 +736,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8">
+                            CornerRadius="{StaticResource RadiusSurface}">
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal">
@@ -778,12 +782,12 @@
                         </VisualStateManager.VisualStateGroups>
                         <Grid>
                             <Border x:Name="HoverLayer"
-                                    CornerRadius="8"
+                                    CornerRadius="{StaticResource RadiusSurface}"
                                     Background="{DynamicResource OverlayHoverBrush}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
                             <Border x:Name="PressLayer"
-                                    CornerRadius="8"
+                                    CornerRadius="{StaticResource RadiusSurface}"
                                     Background="{DynamicResource OverlayPressedBrush}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
@@ -792,7 +796,7 @@
                                         DockPanel.Dock="Left"
                                         Width="3"
                                         CornerRadius="2"
-                                        Margin="0,2,8,2"
+                                        Margin="0,1,6,1"
                                         Background="Transparent"
                                         Opacity="0"/>
                                 <ContentPresenter/>
@@ -814,9 +818,9 @@
         <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="8"/>
-        <Setter Property="Padding" Value="16"/>
-        <Setter Property="Margin" Value="0,0,0,10"/>
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSurface}"/>
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
@@ -833,22 +837,23 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-        <Setter Property="Margin" Value="0,16,0,8"/>
+        <Setter Property="Margin" Value="0,8,0,6"/>
     </Style>
 
     <Style x:Key="Segmented" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="8"/>
-        <Setter Property="Padding" Value="3"/>
-        <Setter Property="Margin" Value="0,0,10,0"/>
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusControl}"/>
+        <Setter Property="Padding" Value="2"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
     </Style>
 
     <Style TargetType="{x:Type ui:Badge}">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Focusable" Value="False"/>
-        <Setter Property="Padding" Value="8,2"/>
+        <Setter Property="Padding" Value="6,1"/>
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -858,7 +863,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ui:Badge}">
                     <Border Background="{TemplateBinding Background}"
-                            CornerRadius="4"
+                            CornerRadius="{StaticResource RadiusControl}"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter TextBlock.Foreground="{TemplateBinding Foreground}"
                                           TextBlock.FontSize="{TemplateBinding FontSize}"
@@ -892,7 +897,7 @@
                 <Setter Property="Foreground" Value="{DynamicResource DevBadgeTextBrush}"/>
                 <Setter Property="FontWeight" Value="Bold"/>
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Padding" Value="8,2"/>
+                <Setter Property="Padding" Value="6,1"/>
             </Trigger>
             <Trigger Property="Appearance" Value="Success">
                 <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
@@ -944,29 +949,29 @@
         <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="14"/>
+        <Setter Property="Padding" Value="10"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ui:Surface}">
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8"
+                            CornerRadius="{StaticResource RadiusSurface}"
                             Padding="{TemplateBinding Padding}">
                         <DockPanel>
-                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10"
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6"
                                        Visibility="{Binding Header, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource VisibleIfPresent}}">
                                 <ContentPresenter DockPanel.Dock="Right"
                                                   Content="{TemplateBinding HeaderAction}"
                                                   Visibility="{Binding HeaderAction, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource VisibleIfPresent}}"/>
                                 <ContentPresenter Content="{TemplateBinding Header}"
                                                   TextBlock.FontWeight="SemiBold"
-                                                  TextBlock.FontSize="15"
+                                                  TextBlock.FontSize="14"
                                                   VerticalAlignment="Center"/>
                             </DockPanel>
                             <ContentPresenter DockPanel.Dock="Bottom"
                                               Content="{TemplateBinding Footer}"
-                                              Margin="0,10,0,0"
+                                              Margin="0,6,0,0"
                                               Visibility="{Binding Footer, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource VisibleIfPresent}}"/>
                             <ContentPresenter Content="{TemplateBinding Content}"/>
                         </DockPanel>
@@ -980,7 +985,7 @@
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-        <Setter Property="Margin" Value="0,0,0,10"/>
+        <Setter Property="Margin" Value="0,0,0,6"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ui:FieldRow}">
@@ -989,7 +994,7 @@
                             <ColumnDefinition Width="{Binding LabelWidth, RelativeSource={RelativeSource TemplatedParent}}"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <ContentPresenter VerticalAlignment="Top" Margin="0,4,8,0"
+                        <ContentPresenter VerticalAlignment="Center" Margin="0,0,8,0"
                                           TextBlock.Foreground="{DynamicResource MutedBrush}"
                                           Content="{TemplateBinding Header}"/>
                         <ContentPresenter Grid.Column="1"
@@ -1007,8 +1012,8 @@
         <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="16"/>
-        <Setter Property="Margin" Value="0,0,0,10"/>
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ui:ItemCard}">
@@ -1016,7 +1021,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8">
+                            CornerRadius="{StaticResource RadiusSurface}">
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal">
@@ -1045,7 +1050,7 @@
                         </VisualStateManager.VisualStateGroups>
                         <Grid>
                             <Border x:Name="HoverLayer"
-                                    CornerRadius="8"
+                                    CornerRadius="{StaticResource RadiusSurface}"
                                     Background="{DynamicResource OverlayHoverBrush}"
                                     Opacity="0"
                                     IsHitTestVisible="False"/>
@@ -1056,31 +1061,31 @@
                             <StackPanel>
                                 <DockPanel>
                                     <ContentPresenter Content="{TemplateBinding Badge}"
-                                                      Margin="0,0,8,0"
+                                                      Margin="0,0,6,0"
                                                       VerticalAlignment="Center"/>
                                     <ContentPresenter DockPanel.Dock="Right"
                                                       Content="{TemplateBinding Status}"
-                                                      Margin="12,0,0,0"
+                                                      Margin="8,0,0,0"
                                                       VerticalAlignment="Center"/>
                                     <TextBlock Text="{TemplateBinding Header}"
-                                               FontSize="16"
+                                               FontSize="15"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextBrush}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center"/>
                                 </DockPanel>
                                 <TextBlock x:Name="Desc"
-                                           Margin="0,6,0,0"
+                                           Margin="0,4,0,0"
                                            Style="{StaticResource Caption}"
                                            Text="{TemplateBinding Description}"/>
-                                <ContentPresenter Content="{TemplateBinding Content}" Margin="0,4,0,0"/>
+                                <ContentPresenter Content="{TemplateBinding Content}" Margin="0,2,0,0"/>
                             </StackPanel>
                         </DockPanel>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsNested" Value="True">
-                            <Setter Property="Margin" Value="28,0,0,10"/>
+                            <Setter Property="Margin" Value="20,0,0,8"/>
                             <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
                         </Trigger>
                         <Trigger Property="ShowDescription" Value="False">
@@ -1099,7 +1104,7 @@
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-        <Setter Property="Margin" Value="0,0,0,8"/>
+        <Setter Property="Margin" Value="0,0,0,4"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ui:NavRow}">
@@ -1114,7 +1119,7 @@
                                            Foreground="{DynamicResource TextBrush}"/>
                                 <TextBlock x:Name="DetailText"
                                            Text="{TemplateBinding Detail}"
-                                           Margin="0,4,0,0"
+                                           Margin="0,2,0,0"
                                            TextTrimming="CharacterEllipsis"
                                            Style="{StaticResource Caption}"/>
                             </StackPanel>
@@ -1202,7 +1207,7 @@
         <Setter Property="Background" Value="{DynamicResource StatusBarBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
         <Setter Property="BorderThickness" Value="0,1,0,0"/>
-        <Setter Property="Padding" Value="16,8"/>
+        <Setter Property="Padding" Value="12,6"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
 
@@ -1226,7 +1231,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Margin="16,0,12,0"
+                            <TextBlock Margin="12,0,10,0"
                                        VerticalAlignment="Center"
                                        FontSize="13"
                                        FontWeight="SemiBold"
@@ -1275,6 +1280,7 @@
         <Setter Property="Panel.ZIndex" Value="100"/>
         <Setter Property="IsTabStop" Value="False"/>
         <Setter Property="CardMaxWidth" Value="640"/>
+        <Setter Property="CardMinWidth" Value="440"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ui:AppDialog}">
@@ -1337,29 +1343,29 @@
                                 Background="{TemplateBinding Background}"
                                 Opacity="0"/>
                         <Border x:Name="Card"
-                                MinWidth="440"
+                                MinWidth="{TemplateBinding CardMinWidth}"
                                 MaxWidth="{TemplateBinding CardMaxWidth}"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Background="{DynamicResource PanelBrush}"
                                 BorderBrush="{DynamicResource LineBrush}"
                                 BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="20"
+                                CornerRadius="{StaticResource RadiusSurface}"
+                                Padding="14"
                                 Opacity="0">
                             <Border.RenderTransform>
                                 <TranslateTransform x:Name="CardSlide" Y="12"/>
                             </Border.RenderTransform>
                             <DockPanel>
-                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                                     <Button x:Name="PART_Close"
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource CaptionButton}"
-                                            Width="32"
-                                            Height="32"
+                                            Width="28"
+                                            Height="28"
                                             Content="&#xE8BB;"
                                             ToolTip="关闭"/>
-                                    <TextBlock FontSize="16"
+                                    <TextBlock FontSize="15"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextBrush}"
@@ -1368,7 +1374,7 @@
                                 <StackPanel DockPanel.Dock="Bottom"
                                             Orientation="Horizontal"
                                             HorizontalAlignment="Right"
-                                            Margin="0,16,0,0">
+                                            Margin="0,10,0,0">
                                     <Button x:Name="PART_Secondary"
                                             Style="{StaticResource GhostButton}"
                                             Content="{TemplateBinding SecondaryText}"
