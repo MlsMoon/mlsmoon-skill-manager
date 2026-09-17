@@ -51,7 +51,7 @@ public sealed class SkillInstaller
 
         if (!skill.IsPlugin && roots.Count == 0)
         {
-            throw new InvalidOperationException("请至少选择一个安装目标（默认 .agent）。");
+            throw new InvalidOperationException($"请至少选择一个安装目标（默认 {SkillRoots.DefaultRoot}）。");
         }
 
         _paths.EnsureWritable();
@@ -107,7 +107,7 @@ public sealed class SkillInstaller
 
             foreach (var companion in skill.CompanionSkills)
             {
-                UninstallSkillCopy(companion, workspacePath, SkillRootsFor(roots), log);
+                UninstallSkillCopy(companion, workspacePath, SkillRoots.Normalize(roots), log);
             }
 
             return;
@@ -211,7 +211,7 @@ public sealed class SkillInstaller
             return;
         }
 
-        var skillRoots = SkillRootsFor(roots);
+        var skillRoots = SkillRoots.Normalize(roots);
         log?.Invoke($"一并安装随附 Skill → {string.Join(", ", skillRoots.Select(root => root + "/skills"))}");
         foreach (var companion in plugin.CompanionSkills)
         {
@@ -244,13 +244,14 @@ public sealed class SkillInstaller
         IReadOnlyList<string> roots,
         Action<string>? log)
     {
-        if (roots.Count == 0)
+        var targets = SkillRoots.Normalize(roots);
+        if (targets.Count == 0)
         {
-            throw new InvalidOperationException("请至少选择一个安装目标（默认 .agent）。");
+            throw new InvalidOperationException($"请至少选择一个安装目标（默认 {SkillRoots.DefaultRoot}）。");
         }
 
         var marker = CreateMarker(skill, repo.HttpsUrl, commit, branch);
-        foreach (var root in roots)
+        foreach (var root in targets)
         {
             var dest = WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
             var label = skill.IsCompanion ? "随附 Skill" : "Skill";
@@ -267,7 +268,7 @@ public sealed class SkillInstaller
         IReadOnlyList<string> roots,
         Action<string>? log)
     {
-        foreach (var root in roots)
+        foreach (var root in SkillRoots.Expand(roots))
         {
             var dest = WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
             if (!Directory.Exists(dest))
@@ -287,11 +288,6 @@ public sealed class SkillInstaller
             Directory.Delete(dest, true);
             InstallSnapshot.Delete(_paths.SnapshotPath(workspacePath, skill.Id, root));
         }
-    }
-
-    private static IReadOnlyList<string> SkillRootsFor(IReadOnlyList<string> roots)
-    {
-        return roots.Count > 0 ? roots : [SkillRoots.DefaultRoot];
     }
 
     private static void WarnIfNotUnityProject(string workspacePath, Action<string>? log)

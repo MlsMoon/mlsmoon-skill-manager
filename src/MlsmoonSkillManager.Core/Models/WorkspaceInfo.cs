@@ -1,22 +1,24 @@
 namespace MlsmoonSkillManager.Core.Models;
 
-public static class SkillRoots
-{
-    public const string DefaultRoot = ".agent";
-
-    public static readonly IReadOnlyList<string> PrimaryRoots = [".agent", ".claude", ".grok"];
-
-    public static readonly IReadOnlyList<string> DetectableRoots =
-        [".agent", ".agents", ".claude", ".grok"];
-}
-
 public sealed class SkillRootInfo
 {
     public required string Name { get; init; }
     public required string FullPath { get; init; }
     public bool Exists { get; init; }
     public bool HasSkillsFolder { get; init; }
+    public bool HasLegacyOnly { get; init; }
     public bool IsDefault => Name.Equals(SkillRoots.DefaultRoot, StringComparison.OrdinalIgnoreCase);
+
+    public string Badge =>
+        HasLegacyOnly
+            ? "已检测到 .agent"
+            : HasSkillsFolder
+                ? "已检测到 skills"
+                : Exists
+                    ? "已检测到"
+                    : IsDefault
+                        ? "将创建"
+                        : "未检测到";
 }
 
 public sealed class WorkspaceInfo

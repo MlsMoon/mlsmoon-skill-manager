@@ -46,13 +46,32 @@ public sealed class WorkspaceScanner
         }
 
         var list = new List<RootInstallStatus>();
-        foreach (var root in roots.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var root in SkillRoots.Normalize(roots))
         {
-            var path = SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
-            list.Add(DescribeInstall(path, root, SkillInstaller.MarkerFileName));
+            list.Add(DescribeSkillInstall(workspacePath, root, skill.ResolvedInstallName));
         }
 
         return list;
+    }
+
+    private static RootInstallStatus DescribeSkillInstall(
+        string workspacePath,
+        string root,
+        string installName)
+    {
+        foreach (var disk in SkillRoots.DiskNames(root))
+        {
+            var path = SkillInstallPath(workspacePath, disk, installName);
+            if (Directory.Exists(path))
+            {
+                return DescribeInstall(path, root, SkillInstaller.MarkerFileName);
+            }
+        }
+
+        return DescribeInstall(
+            SkillInstallPath(workspacePath, root, installName),
+            root,
+            SkillInstaller.MarkerFileName);
     }
 
     private static RootInstallStatus DescribeInstall(string path, string root, string markerFileName)
@@ -90,12 +109,19 @@ public sealed class WorkspaceScanner
     private static SkillRootInfo DescribeRoot(string workspace, string name)
     {
         var full = Path.Combine(workspace, name);
+        var disks = SkillRoots.DiskNames(name);
+        var exists = disks.Any(disk => Directory.Exists(Path.Combine(workspace, disk)));
+        var hasSkills = disks.Any(disk => Directory.Exists(Path.Combine(workspace, disk, "skills")));
+        var canonicalExists = Directory.Exists(full);
+        var legacyExists = name.Equals(SkillRoots.DefaultRoot, StringComparison.OrdinalIgnoreCase)
+                           && Directory.Exists(Path.Combine(workspace, SkillRoots.LegacyAgentRoot));
         return new SkillRootInfo
         {
             Name = name,
             FullPath = full,
-            Exists = Directory.Exists(full),
-            HasSkillsFolder = Directory.Exists(Path.Combine(full, "skills"))
+            Exists = exists,
+            HasSkillsFolder = hasSkills,
+            HasLegacyOnly = legacyExists && !canonicalExists
         };
     }
 }

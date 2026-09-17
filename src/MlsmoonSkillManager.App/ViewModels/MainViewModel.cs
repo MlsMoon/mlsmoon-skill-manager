@@ -34,6 +34,9 @@ public sealed class MainViewModel : ObservableObject
     private bool _autoCheckUpdates;
     private bool _hasAppUpdate;
     private bool _updateBusy;
+    private bool _isDownloadingUpdate;
+    private double _updateProgress;
+    private string _updateProgressText = "";
     private AppReleaseInfo? _latestRelease;
     private AccessState _ghState;
     private AccessState _igpState;
@@ -70,20 +73,9 @@ public sealed class MainViewModel : ObservableObject
             Roots.Add(new RootOptionViewModel(root));
         }
 
-        foreach (var (id, label) in new (string, string)[]
-                 {
-                     ("appearance", "外观"),
-                     ("connection", "连接"),
-                     ("updates", "更新"),
-                     ("folders", "位置"),
-                     ("about", "关于"),
-                     ("log", "日志")
-                 })
+        foreach (var tab in SettingsTabViewModel.CreateAll(IsDev))
         {
-            SettingsTabs.Add(new SettingsTabViewModel(id, label)
-            {
-                IsSelected = id == "appearance"
-            });
+            SettingsTabs.Add(tab);
         }
 
         foreach (var theme in ThemeResolver.Preferences)
@@ -126,9 +118,11 @@ public sealed class MainViewModel : ObservableObject
             SelectSettingsTab(SettingsTabs.First(item => item.Id == "log"));
             IsSettingsOpen = true;
         });
-        CheckUpdatesCommand = new RelayCommand(async _ => await CheckUpdatesAsync(quiet: false).ConfigureAwait(true), _ => !UpdateBusy);
+        CheckUpdatesCommand = new RelayCommand(async _ => await CheckUpdatesAsync(quiet: false).ConfigureAwait(true), _ => CanCheckAppUpdate);
         InstallAppUpdateCommand = new RelayCommand(async _ => await InstallAppUpdateAsync().ConfigureAwait(true), _ => CanInstallAppUpdate);
-        OpenLatestReleaseCommand = new RelayCommand(_ => OpenPath(_latestRelease?.HtmlUrl ?? UpdateService.ReleasesUrl));
+        OpenLatestReleaseCommand = new RelayCommand(
+            _ => OpenPath(_latestRelease?.HtmlUrl ?? UpdateService.ReleasesUrl),
+            _ => !IsDev);
         CloseLogCommand = new RelayCommand(_ => IsLogOpen = false);
         ClearLogCommand = new RelayCommand(_ =>
         {
@@ -273,14 +267,36 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _updateBusy, value))
             {
+                Raise(nameof(CanCheckAppUpdate));
+                Raise(nameof(CanInstallAppUpdate));
                 CheckUpdatesCommand?.RaiseCanExecuteChanged();
                 InstallAppUpdateCommand?.RaiseCanExecuteChanged();
             }
         }
     }
 
+    public bool CanCheckAppUpdate => !IsDev && !UpdateBusy;
+
     public bool CanInstallAppUpdate =>
-        HasAppUpdate && !IsDev && !UpdateBusy && _latestRelease?.HasSetup == true;
+        CanCheckAppUpdate && HasAppUpdate && _latestRelease?.HasSetup == true;
+
+    public bool IsDownloadingUpdate
+    {
+        get => _isDownloadingUpdate;
+        set => SetProperty(ref _isDownloadingUpdate, value);
+    }
+
+    public double UpdateProgress
+    {
+        get => _updateProgress;
+        set => SetProperty(ref _updateProgress, value);
+    }
+
+    public string UpdateProgressText
+    {
+        get => _updateProgressText;
+        set => SetProperty(ref _updateProgressText, value);
+    }
 
     public string NasUser
     {
@@ -571,6 +587,7 @@ public sealed class MainViewModel : ObservableObject
             foreach (var row in AllSkills)
             {
                 row.Access = new RepoAccess { State = AccessState.Checking, Message = "正在检查权限…" };
+                row.MarkGitChecking();
             }
 
             var lanHost = AllSkills.Select(item => item.Definition)
@@ -650,7 +667,7 @@ public sealed class MainViewModel : ObservableObject
             Busy = false;
         }
 
-        if (AutoCheckUpdates)
+        if (!IsDev && AutoCheckUpdates)
         {
             await CheckUpdatesAsync(quiet: true).ConfigureAwait(true);
         }
@@ -736,7 +753,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (!row.IsPlugin && roots.Count == 0)
         {
-            Log("请至少勾选一个 Skill 安装目标。默认建议 .agent。");
+            Log($"请至少勾选一个 Skill 安装目标。默认建议 {SkillRoots.DefaultRoot}。");
             return false;
         }
 
@@ -758,39 +775,27 @@ public sealed class MainViewModel : ObservableObject
     {
         return CanMutate(parameter)
                && parameter is SkillRowViewModel row
-               && row.IsInstalledManaged
+               && row.IsInstalled
                && row.Access.CanInstall;
     }
 
     private bool CanAutoUpdate(SkillRowViewModel row)
     {
-        if (row.Git.Forbidden)
+        if (!GitUpdateGuard.TryBlock(row, out var message, out var showDialog))
         {
-            Log($"{row.Name}: {row.Git.Warning}");
-            return false;
+            return true;
         }
 
-        switch (row.Git.State)
+        if (showDialog)
         {
-            case SkillGitState.Current:
-                Log($"{row.Name}: 已是最新，没有可套用的提交。");
-                return false;
-            case SkillGitState.Conflict:
-                ShowConflict(
-                    row,
-                    $"{row.Name} 有冲突，无法自动更新。工作区改过这些文件，同时远端也有新提交。请在安装目录里手动处理后再更新。");
-                return false;
-            case SkillGitState.LocalChanges:
-                ShowConflict(
-                    row,
-                    $"{row.Name} 没有远端更新，但工作区有本地修改。应用不会覆盖这些改动，请手动处理。");
-                return false;
-            case SkillGitState.Unmanaged:
-                Log($"{row.Name}: 本地存在但非本工具安装，不能自动更新。");
-                return false;
-            default:
-                return true;
+            ShowConflict(row, message);
         }
+        else
+        {
+            Log(message);
+        }
+
+        return false;
     }
 
     private void ShowConflict(SkillRowViewModel row, string lead)
@@ -828,7 +833,7 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        foreach (var row in AllSkills.Where(item => item.IsInstalledManaged))
+        foreach (var row in AllSkills)
         {
             row.MarkGitChecking();
         }
@@ -887,17 +892,12 @@ public sealed class MainViewModel : ObservableObject
         UpdateCommand?.RaiseCanExecuteChanged();
         UninstallCommand?.RaiseCanExecuteChanged();
         OpenWorkspaceFolderCommand?.RaiseCanExecuteChanged();
-        UpdateCommand?.RaiseCanExecuteChanged();
         OpenInstallFolderCommand?.RaiseCanExecuteChanged();
     }
 
     private void RefreshInstallStatuses()
     {
-        var roots = SelectedRootNames();
-        if (roots.Count == 0)
-        {
-            roots = [SkillRoots.DefaultRoot];
-        }
+        var roots = SkillRoots.Normalize(SelectedRootNames()).ToList();
 
         foreach (var row in AllSkills)
         {
@@ -931,9 +931,7 @@ public sealed class MainViewModel : ObservableObject
             .Where(r => r.Exists)
             .Select(r => r.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var saved = savedRoots.Count > 0
-            ? savedRoots.ToHashSet(StringComparer.OrdinalIgnoreCase)
-            : [SkillRoots.DefaultRoot];
+        var saved = SkillRoots.Normalize(savedRoots).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         _suppressRootEvents = true;
         try
@@ -941,9 +939,7 @@ public sealed class MainViewModel : ObservableObject
             foreach (var option in Roots)
             {
                 var info = detected.FirstOrDefault(r => r.Name.Equals(option.Name, StringComparison.OrdinalIgnoreCase));
-                option.Badge = info?.Exists == true
-                    ? (info.HasSkillsFolder ? "已检测到 skills" : "已检测到")
-                    : (option.IsDefault ? "将创建" : "未检测到");
+                option.Badge = info?.Badge ?? (option.IsDefault ? "将创建" : "未检测到");
                 option.IsSelected = autoSelectDetected
                     ? option.IsDefault || existing.Contains(option.Name)
                     : saved.Contains(option.Name) || (saved.Count == 0 && option.IsDefault);
@@ -1083,7 +1079,7 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task CheckUpdatesAsync(bool quiet)
     {
-        if (UpdateBusy)
+        if (IsDev || UpdateBusy)
         {
             return;
         }
@@ -1141,16 +1137,14 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task InstallAppUpdateAsync()
     {
+        if (IsDev)
+        {
+            return;
+        }
+
         if (_latestRelease is null)
         {
             await CheckUpdatesAsync(quiet: false).ConfigureAwait(true);
-        }
-
-        if (IsDev)
-        {
-            Log("DEV 不会覆盖本机安装，改为打开 GitHub Release。");
-            OpenPath(_latestRelease?.HtmlUrl ?? UpdateService.ReleasesUrl);
-            return;
         }
 
         if (_latestRelease is null || !_latestRelease.HasSetup)
@@ -1160,17 +1154,30 @@ public sealed class MainViewModel : ObservableObject
         }
 
         UpdateBusy = true;
+        IsDownloadingUpdate = true;
+        UpdateProgress = 0;
+        UpdateProgressText = "准备下载…";
         try
         {
             _paths.EnsureWritable();
             Directory.CreateDirectory(_paths.UpdatesDirectory);
             var dest = Path.Combine(_paths.UpdatesDirectory, _latestRelease.SetupName);
             Log("正在下载 " + _latestRelease.SetupName);
-            await _updater.DownloadAsync(_latestRelease.SetupUrl, dest).ConfigureAwait(true);
-            Log("已下载安装包，即将退出以便覆盖安装。");
+            var progress = new Progress<DownloadProgress>(p =>
+            {
+                UpdateProgress = p.HasTotal ? p.Percent : 0;
+                UpdateProgressText = p.HasTotal
+                    ? $"{FormatBytes(p.Received)} / {FormatBytes(p.Total!.Value)}"
+                    : FormatBytes(p.Received);
+            });
+            await _updater.DownloadAsync(_latestRelease.SetupUrl, dest, progress).ConfigureAwait(true);
+            UpdateProgress = 100;
+            UpdateProgressText = "正在覆盖安装…";
+            Log("已下载安装包，即将退出并静默覆盖。");
             Process.Start(new ProcessStartInfo
             {
                 FileName = dest,
+                Arguments = UpdateService.SilentSetupArgs,
                 UseShellExecute = true
             });
             Application.Current.Shutdown();
@@ -1178,11 +1185,25 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Log("安装更新失败: " + ex.Message);
-        }
-        finally
-        {
+            UpdateStatus = "安装更新失败: " + ex.Message;
+            IsDownloadingUpdate = false;
             UpdateBusy = false;
         }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return bytes + " B";
+        }
+
+        if (bytes < 1024 * 1024)
+        {
+            return (bytes / 1024.0).ToString("0.0") + " KB";
+        }
+
+        return (bytes / (1024.0 * 1024.0)).ToString("0.0") + " MB";
     }
 
     private void SaveSettings()

@@ -52,6 +52,7 @@ public static class WorkspaceBook
             });
         }
 
+        settings.SelectedRoots = [.. SkillRoots.Normalize(settings.SelectedRoots)];
         Dedup(settings);
         if (string.IsNullOrWhiteSpace(settings.LastWorkspace) && settings.Workspaces.Count > 0)
         {
@@ -70,10 +71,7 @@ public static class WorkspaceBook
                 continue;
             }
 
-            if (entry.SelectedRoots.Count == 0)
-            {
-                entry.SelectedRoots.Add(SkillRoots.DefaultRoot);
-            }
+            entry.SelectedRoots = [.. SkillRoots.Normalize(entry.SelectedRoots)];
 
             var existing = unique.Find(item => PathsEqual(item.Path, entry.Path));
             if (existing is null)

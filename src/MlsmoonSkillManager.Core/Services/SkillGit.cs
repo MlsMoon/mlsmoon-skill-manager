@@ -7,14 +7,16 @@ public sealed class SkillGit
     private readonly AppPaths _paths;
     private readonly GhCli _gh;
     private readonly GitRemote _git;
+    private readonly GitCompare _compare;
     private readonly Dictionary<string, IReadOnlyList<string>> _branchCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _tipCache = new(StringComparer.OrdinalIgnoreCase);
 
-    public SkillGit(AppPaths paths, GhCli gh, GitRemote git)
+    public SkillGit(AppPaths paths, GhCli gh, GitRemote git, IProcessRunner? runner = null)
     {
         _paths = paths;
         _gh = gh;
         _git = git;
+        _compare = new GitCompare(runner ?? new ProcessRunner());
     }
 
     public static string RecommendBranch(SkillDefinition skill, string? editorVersion, string? installedBranch)
@@ -58,8 +60,8 @@ public sealed class SkillGit
         CancellationToken cancellationToken = default)
     {
         var installed = installs.Any(item => item.Installed);
-        var managed = installs.Where(item => item.Installed && item.Managed).ToList();
-        var first = managed.FirstOrDefault() ?? installs.FirstOrDefault();
+        var copies = installs.Where(item => item.Installed).ToList();
+        var first = copies.FirstOrDefault() ?? installs.FirstOrDefault();
         var installedBranch = first?.Branch ?? "";
         var installedCommit = first?.Commit ?? "";
         var branches = await ListBranchesAsync(skill, nasUser, canReachRemote, cancellationToken).ConfigureAwait(false);
@@ -84,9 +86,9 @@ public sealed class SkillGit
         }
 
         var changes = new List<GitChange>();
-        if (managed.Count > 0 && !string.IsNullOrWhiteSpace(workspacePath))
+        if (copies.Count > 0 && !string.IsNullOrWhiteSpace(workspacePath))
         {
-            foreach (var item in managed)
+            foreach (var item in copies)
             {
                 var snap = _paths.SnapshotPath(workspacePath, skill.Id, item.Root);
                 await TrySeedSnapshotAsync(skill, snap, item, cancellationToken).ConfigureAwait(false);
@@ -94,7 +96,7 @@ public sealed class SkillGit
                     ? []
                     : await Task.Run(() => InstallSnapshot.Diff(snap, item.Path), cancellationToken)
                         .ConfigureAwait(false);
-                if (managed.Count == 1)
+                if (copies.Count == 1)
                 {
                     changes.AddRange(found);
                     continue;
@@ -110,23 +112,25 @@ public sealed class SkillGit
 
         var hasLocal = changes.Count > 0;
         var branchDiffers = installed
-                            && managed.Count > 0
                             && !string.IsNullOrWhiteSpace(installedBranch)
                             && !string.IsNullOrWhiteSpace(target)
                             && !installedBranch.Equals(target, StringComparison.OrdinalIgnoreCase);
-        var remoteAhead = !string.IsNullOrWhiteSpace(remoteCommit)
-                          && !string.IsNullOrWhiteSpace(installedCommit)
-                          && !remoteCommit.Equals(installedCommit, StringComparison.OrdinalIgnoreCase);
+        var compare = string.IsNullOrWhiteSpace(remoteCommit)
+            ? CommitCompare.Unknown
+            : await _compare.CompareAsync(
+                    skill,
+                    installedCommit,
+                    remoteCommit,
+                    CacheDirectory(skill, installedBranch),
+                    cancellationToken)
+                .ConfigureAwait(false);
         var forbidden = IsForbiddenBranch(skill, editorVersion, target);
-        var state = SkillGitStatus.Decide(installed, managed.Count > 0, hasLocal, remoteAhead, branchDiffers);
-        if (installed && managed.Count == 0)
-        {
-            state = SkillGitState.Unmanaged;
-        }
+        var state = SkillGitStatus.Decide(installed, hasLocal, compare.Relation, branchDiffers);
 
         return new SkillGitStatus
         {
             State = state,
+            Compare = compare,
             InstalledCommit = installedCommit,
             RemoteCommit = remoteCommit,
             InstalledBranch = installedBranch,
@@ -135,7 +139,16 @@ public sealed class SkillGit
             Changes = changes,
             Forbidden = forbidden,
             Warning = forbidden ? "Unity 6 不能使用 master 上的 URP 14，请改选 urp-17.5。" : "",
-            Message = Describe(state, target, installedBranch, installedCommit, remoteCommit, changes.Count, canReachRemote, remoteCommit.Length > 0)
+            Message = SkillGitStatus.Describe(
+                state,
+                compare,
+                target,
+                installedBranch,
+                installedCommit,
+                remoteCommit,
+                changes.Count,
+                canReachRemote,
+                remoteCommit.Length > 0)
         };
     }
 
@@ -279,16 +292,7 @@ public sealed class SkillGit
             return;
         }
 
-        string? cache = null;
-        if (skill.IsLan && !string.IsNullOrWhiteSpace(install.Branch))
-        {
-            cache = _paths.LanCacheDirectory(skill.Host, skill.ResolvedInstallName, install.Branch);
-        }
-        else if (RepoUrl.TryParse(skill.Repo, out var repo))
-        {
-            cache = _paths.RepoCacheDirectory(repo);
-        }
-
+        var cache = CacheDirectory(skill, install.Branch);
         if (string.IsNullOrWhiteSpace(cache) || !Directory.Exists(Path.Combine(cache, ".git")))
         {
             return;
@@ -318,39 +322,20 @@ public sealed class SkillGit
         }
     }
 
+    private string? CacheDirectory(SkillDefinition skill, string? branch)
+    {
+        if (skill.IsLan && !string.IsNullOrWhiteSpace(branch))
+        {
+            return _paths.LanCacheDirectory(skill.Host, skill.ResolvedInstallName, branch);
+        }
+
+        return RepoUrl.TryParse(skill.Repo, out var repo)
+            ? _paths.RepoCacheDirectory(repo)
+            : null;
+    }
+
     private static string BranchKey(SkillDefinition skill, string? nasUser)
     {
         return skill.IsLan ? skill.SshUrl(nasUser ?? "") : skill.Repo;
-    }
-
-    private static string Describe(
-        SkillGitState state,
-        string target,
-        string installedBranch,
-        string installedCommit,
-        string remoteCommit,
-        int changeCount,
-        bool canReachRemote,
-        bool hasRemote)
-    {
-        var local = SkillGitStatus.ShortSha(installedCommit);
-        var remote = SkillGitStatus.ShortSha(remoteCommit);
-        var branch = string.IsNullOrWhiteSpace(target) ? installedBranch : target;
-        return state switch
-        {
-            SkillGitState.NotInstalled => "",
-            SkillGitState.Checking => "正在对照 Git…",
-            SkillGitState.Unmanaged => "本地存在但非本工具安装，不对照 Git",
-            SkillGitState.Current => string.IsNullOrWhiteSpace(local)
-                ? $"已是最新{(string.IsNullOrWhiteSpace(branch) ? "" : " · " + branch)}"
-                : $"已是最新 · {branch} · {local}",
-            SkillGitState.Behind => $"有更新 · {local} → {remote}（{branch}）",
-            SkillGitState.LocalChanges => $"远端没有新提交，工作区有 {changeCount} 处本地修改",
-            SkillGitState.Conflict => "有冲突：工作区改过且远端有更新，请手动处理后再更新",
-            SkillGitState.BranchSwitch => $"将切换到 {branch}，工作区是干净的",
-            _ => canReachRemote && !hasRemote
-                ? "未能读取远端提交"
-                : "尚未对照 Git"
-        };
     }
 }

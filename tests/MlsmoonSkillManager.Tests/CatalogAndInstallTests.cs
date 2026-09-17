@@ -47,9 +47,9 @@ public class CatalogAndInstallTests
             Directory.CreateDirectory(Path.Combine(workspace, ".agent", "skills"));
             Directory.CreateDirectory(Path.Combine(workspace, ".claude"));
             var info = new WorkspaceScanner().Scan(workspace);
-            Assert.Contains(info.Roots, r => r.Name == ".agent" && r.Exists && r.HasSkillsFolder);
+            Assert.Contains(info.Roots, r => r.Name == ".agents" && r.Exists && r.HasSkillsFolder && r.HasLegacyOnly);
             Assert.Contains(info.Roots, r => r.Name == ".claude" && r.Exists && !r.HasSkillsFolder);
-            Assert.Contains(info.Roots, r => r.Name == ".grok" && !r.Exists);
+            Assert.All(info.Roots.Where(r => r.Name is ".codex" or ".grok"), r => Assert.False(r.Exists));
         }
         finally
         {

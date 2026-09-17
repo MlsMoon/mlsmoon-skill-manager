@@ -23,7 +23,7 @@ if ($tags.Count -eq 0) {
 if ($tags -contains "all") {
     $keep = @($tags | Where-Object { $_ -in @("gh", "ui") })
     $tags = [System.Collections.Generic.List[string]]::new()
-    $tags.AddRange([string[]]@("build", "catalog", "install", "workspace", "sync", "release"))
+    $tags.AddRange([string[]]@("build", "catalog", "install", "workspace", "sync", "release", "size"))
     foreach ($item in $keep) {
         if (-not ($tags -contains $item)) {
             $tags.Add($item)
@@ -113,22 +113,31 @@ if ($tags -contains "workspace") {
 
 if ($tags -contains "sync") {
     Invoke-Step "sync" {
-        function Get-SkillGitState([bool]$Installed, [bool]$Managed, [bool]$Local, [bool]$Ahead, [bool]$BranchDiff) {
+        function Get-SkillGitState([bool]$Installed, [bool]$Local, [string]$Relation, [bool]$BranchDiff) {
             if (-not $Installed) { return "notinstalled" }
-            if (-not $Managed) { return "unmanaged" }
-            if ($Local -and ($Ahead -or $BranchDiff)) { return "conflict" }
+            $remoteHasNew = $Relation -in @("behind", "diverged")
+            if ($Local -and ($remoteHasNew -or $BranchDiff)) { return "conflict" }
             if ($Local) { return "local" }
             if ($BranchDiff) { return "switch" }
-            if ($Ahead) { return "behind" }
-            return "current"
+            switch ($Relation) {
+                "behind" { return "behind" }
+                "ahead" { return "ahead" }
+                "diverged" { return "diverged" }
+                "unknown" { return "unclear" }
+                default { return "current" }
+            }
         }
 
-        Assert-True ((Get-SkillGitState $true $true $false $false $false) -eq "current") "clean should be current"
-        Assert-True ((Get-SkillGitState $true $true $false $true $false) -eq "behind") "remote ahead should be behind"
-        Assert-True ((Get-SkillGitState $true $true $true $false $false) -eq "local") "dirty clean-remote should be local"
-        Assert-True ((Get-SkillGitState $true $true $true $true $false) -eq "conflict") "dirty + remote must conflict"
-        Assert-True ((Get-SkillGitState $true $true $true $false $true) -eq "conflict") "dirty + branch switch must conflict"
-        Assert-True ((Get-SkillGitState $true $true $false $false $true) -eq "switch") "clean branch switch"
+        Assert-True ((Get-SkillGitState $true $false "same" $false) -eq "current") "clean should be current"
+        Assert-True ((Get-SkillGitState $true $false "behind" $false) -eq "behind") "local behind remote"
+        Assert-True ((Get-SkillGitState $true $false "ahead" $false) -eq "ahead") "local ahead of remote"
+        Assert-True ((Get-SkillGitState $true $false "diverged" $false) -eq "diverged") "diverged history"
+        Assert-True ((Get-SkillGitState $true $false "unknown" $false) -eq "unclear") "unknown ancestry"
+        Assert-True ((Get-SkillGitState $true $true "same" $false) -eq "local") "dirty aligned-remote should be local"
+        Assert-True ((Get-SkillGitState $true $true "ahead" $false) -eq "local") "dirty + local ahead is local, not conflict"
+        Assert-True ((Get-SkillGitState $true $true "behind" $false) -eq "conflict") "dirty + remote must conflict"
+        Assert-True ((Get-SkillGitState $true $true "same" $true) -eq "conflict") "dirty + branch switch must conflict"
+        Assert-True ((Get-SkillGitState $true $false "same" $true) -eq "switch") "clean branch switch"
 
         $git = Get-Command git -ErrorAction SilentlyContinue
         if (-not $git) {
@@ -211,7 +220,9 @@ if ($tags -contains "release") {
         Assert-True ($workflow -notmatch 'generate_release_notes:\s*true') "release.yml must not use GitHub auto compare notes"
         $iss = Get-Content -Raw (Join-Path $root "Scripts\installer.iss")
         Assert-True ($iss -match '(?m)^DisableDirPage=no\s*$') "installer.iss must keep DisableDirPage=no so Setup shows the folder page"
-        Assert-True ($iss -match 'Excludes: "skills\.override\.json"') "installer must not pack the real override file"
+        Assert-True ($iss -notmatch 'Excludes: "skills\.override\.json"') "local pack must include catalog/skills.override.json when it exists"
+        $build = Get-Content -Raw (Join-Path $root "Scripts\build.ps1")
+        Assert-True ($build -notmatch 'Remove-Item \$privateOverride') "build.ps1 must keep a local skills.override.json"
         $notes = Join-Path $env:TEMP "mlsmoon-release-notes-$version.md"
         & (Join-Path $root "Scripts\release_notes.ps1") -Version $version -Output $notes
         if (-not (Test-Path $notes)) { throw "release_notes.ps1 did not write $notes" }
@@ -219,6 +230,13 @@ if ($tags -contains "release") {
         Assert-True ($notesText.Trim().Length -ge 40) "CHANGELOG section $version is too short"
         Assert-True ($notesText -notmatch '(?m)^\s*(\*\*)?Full Changelog(\*\*)?\s*:') "CHANGELOG section must not be a Full Changelog compare link"
         Write-Host "VERSION $version"
+    }
+}
+
+if ($tags -contains "size") {
+    Invoke-Step "size" {
+        & (Join-Path $root "Scripts\file_budget.ps1")
+        if ($LASTEXITCODE -ne 0) { throw "file budget failed" }
     }
 }
 

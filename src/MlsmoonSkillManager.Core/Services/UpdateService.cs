@@ -3,6 +3,12 @@ using System.Text.Json;
 
 namespace MlsmoonSkillManager.Core.Services;
 
+public readonly record struct DownloadProgress(long Received, long? Total)
+{
+    public double Percent => Total is > 0 ? 100.0 * Received / Total.Value : 0;
+    public bool HasTotal => Total is > 0;
+}
+
 public sealed class AppReleaseInfo
 {
     public string Tag { get; init; } = "";
@@ -19,6 +25,8 @@ public sealed class UpdateService
     public const string OwnerRepo = "MlsMoon/moon-game-dev-tool-manager";
     public const string ReleasesUrl = "https://github.com/" + OwnerRepo + "/releases";
     public const string LatestApiUrl = "https://api.github.com/repos/" + OwnerRepo + "/releases/latest";
+    public const string SilentSetupArgs =
+        "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS";
 
     private static readonly HttpClient Http = CreateClient();
 
@@ -37,15 +45,39 @@ public sealed class UpdateService
     public async Task DownloadAsync(
         string url,
         string destination,
+        IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
+        var total = response.Content.Headers.ContentLength;
         await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         await using var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
-        await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+        var buffer = new byte[81920];
+        long received = 0;
+        var lastReport = DateTime.MinValue;
+        progress?.Report(new DownloadProgress(0, total));
+        while (true)
+        {
+            var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+            if (read <= 0)
+            {
+                break;
+            }
+
+            await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+            received += read;
+            var now = DateTime.UtcNow;
+            if (progress is not null && (now - lastReport >= TimeSpan.FromMilliseconds(80) || received == total))
+            {
+                lastReport = now;
+                progress.Report(new DownloadProgress(received, total));
+            }
+        }
+
+        progress?.Report(new DownloadProgress(received, total ?? received));
     }
 
     public static bool IsNewer(Version latest, Version current)

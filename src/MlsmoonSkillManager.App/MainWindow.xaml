@@ -166,7 +166,7 @@
                                     <ui:ItemCard Header="{Binding Name}"
                                                  Description="{Binding Description}"
                                                  ShowDescription="{Binding ShowDetails}"
-                                                 IsNested="{Binding IsCompanion}">
+                                                 IsNested="{Binding IsCompanion}" IsLoading="{Binding IsLoading}">
                                         <ui:ItemCard.Badge>
                                             <StackPanel Orientation="Horizontal">
                                                 <ui:Badge Content="{Binding KindLabel}"

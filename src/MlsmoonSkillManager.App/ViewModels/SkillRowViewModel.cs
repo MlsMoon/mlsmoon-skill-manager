@@ -64,8 +64,8 @@ public sealed class SkillRowViewModel : ObservableObject
         ? "全引擎"
         : string.Join(" · ", Definition.ResolvedEngines.Select(GameEngines.Label));
     public ObservableCollection<string> Branches { get; } = [];
-    public bool ShowInstall => !IsCompanion && !IsInstalledManaged;
-    public bool ShowUpdate => IsInstalledManaged;
+    public bool ShowInstall => !IsCompanion && !IsInstalled;
+    public bool ShowUpdate => IsInstalled;
     public bool ShowOpenFolder => IsInstalled;
     public bool ShowCompanionHint => IsPlugin && Definition.CompanionSkills.Count > 0;
     public bool ShowBranchPicker => Branches.Count > 0;
@@ -91,9 +91,9 @@ public sealed class SkillRowViewModel : ObservableObject
             {
                 Raise(nameof(AccessText));
                 Raise(nameof(AccessTone));
-                Raise(nameof(AccessBrushKey));
                 Raise(nameof(ShowDetails));
                 Raise(nameof(DeniedOnly));
+                Raise(nameof(IsLoading));
             }
         }
     }
@@ -160,11 +160,14 @@ public sealed class SkillRowViewModel : ObservableObject
             Raise(nameof(LocalChangesText));
             Raise(nameof(UpdateLabel));
             Raise(nameof(CanApplyUpdate));
+            Raise(nameof(IsLoading));
         }
     }
 
     public bool IsInstalled => Installs.Any(item => item.Installed);
     public bool IsInstalledManaged => Installs.Any(item => item.Installed && item.Managed);
+    public bool IsLoading =>
+        Access.State == AccessState.Checking || Git.State == SkillGitState.Checking;
     public bool CanApplyUpdate => Git.CanUpdate && Access.CanInstall;
     public string InstallFolder =>
         Installs.FirstOrDefault(item => item.Installed)?.Path ?? "";
@@ -173,17 +176,7 @@ public sealed class SkillRowViewModel : ObservableObject
         ? ""
         : Git.Message;
 
-    public BadgeAppearance GitStatusTone => Git.State switch
-    {
-        SkillGitState.Current => BadgeAppearance.Success,
-        SkillGitState.Behind => BadgeAppearance.Accent,
-        SkillGitState.BranchSwitch => BadgeAppearance.Accent,
-        SkillGitState.Checking => BadgeAppearance.Neutral,
-        SkillGitState.LocalChanges => BadgeAppearance.Warning,
-        SkillGitState.Conflict => BadgeAppearance.Danger,
-        SkillGitState.Unmanaged => BadgeAppearance.Warning,
-        _ => BadgeAppearance.Neutral
-    };
+    public BadgeAppearance GitStatusTone => SkillGitPresentation.Tone(Git.State);
 
     public string LocalChangesText
     {
@@ -205,16 +198,7 @@ public sealed class SkillRowViewModel : ObservableObject
         }
     }
 
-    public string UpdateLabel => Git.State switch
-    {
-        SkillGitState.Current => "已是最新",
-        SkillGitState.Behind => "更新",
-        SkillGitState.BranchSwitch => "切换分支",
-        SkillGitState.LocalChanges => "有本地修改",
-        SkillGitState.Conflict => "有冲突",
-        SkillGitState.Checking => "对照中",
-        _ => "更新"
-    };
+    public string UpdateLabel => SkillGitPresentation.ActionLabel(Git.State);
 
     public bool ShowDetails => Access.State is AccessState.Accessible or AccessState.Checking or AccessState.Unknown;
 
@@ -241,18 +225,6 @@ public sealed class SkillRowViewModel : ObservableObject
     };
 
     public BadgeAppearance AccessTone => ToneFor(Access.State);
-
-    public string AccessBrushKey => Access.State switch
-    {
-        AccessState.Accessible => "OkBrush",
-        AccessState.Checking => "MutedBrush",
-        AccessState.Unknown => "MutedBrush",
-        AccessState.GhNotLoggedIn => "WarnBrush",
-        AccessState.OffNetwork => "WarnBrush",
-        AccessState.NeedsAuth => "WarnBrush",
-        AccessState.Unreachable => "BadBrush",
-        _ => "BadBrush"
-    };
 
     public static BadgeAppearance ToneFor(AccessState state) => state switch
     {
@@ -325,9 +297,9 @@ public sealed class SkillRowViewModel : ObservableObject
 
             var shortCommit = item.Commit.Length >= 7 ? item.Commit[..7] : item.Commit;
             var branch = string.IsNullOrWhiteSpace(item.Branch) ? "" : item.Branch + " · ";
-            var extra = item.Managed
-                ? (string.IsNullOrWhiteSpace(shortCommit) ? "已托管" : branch + shortCommit)
-                : "本地存在但非本工具安装";
+            var extra = string.IsNullOrWhiteSpace(shortCommit)
+                ? (string.IsNullOrWhiteSpace(item.Branch) ? "已安装" : item.Branch)
+                : branch + shortCommit;
             return $"{item.Root}: {extra}";
         });
         var summary = string.Join("  ·  ", parts);

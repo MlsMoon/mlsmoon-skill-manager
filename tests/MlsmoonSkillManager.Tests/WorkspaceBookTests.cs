@@ -19,7 +19,7 @@ public class WorkspaceBookTests
 
         var entry = Assert.Single(settings.Workspaces);
         Assert.True(WorkspaceBook.PathsEqual(entry.Path, settings.LastWorkspace));
-        Assert.Equal(new[] { ".agent", ".claude" }, entry.SelectedRoots);
+        Assert.Equal(new[] { ".agents", ".claude" }, entry.SelectedRoots);
     }
 
     [Fact]
