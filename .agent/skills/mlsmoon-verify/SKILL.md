@@ -61,8 +61,8 @@ description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager�
 | `-sync` | 用真 `git` 建临时仓库：`ls-remote --heads`、两目录文件对照；断言冲突策略（本地改动 + 远端更新 = 不能自动更新） | 对照 `mlsmoon-workspace` 卡片状态 |
 | `-gh` | 对 catalog 里每个 `repo` 跑真 `gh repo view owner/name --json name,visibility,isPrivate` | 没装 gh 或未登录就标 skip，不要伪造 |
 | `-ui` | 只跑 `Scripts/ui_flow.py`：Python 自己编译、装 uiautomation、后台拉起 `--ui-test`。Invoke 设置→连接→位置→打开当前文件夹→完成→卡片「打开目录」→已安装 / Skill / Plugin 筛选，写 probe | 脚本失败就停。不要 rundev、不要 `SetActive`/`Click`/`SendKeys`。窗口 AutomationId 是 `MlsmoonUiTest`，不激活、不进任务栏、不抢焦点 |
-| `-release` | `VERSION` 是 `X.Y.Z`；`CHANGELOG.md` 有对应 `## [VERSION]`；`release.yml` 要求 tag 在 `origin/release` 上，用 `release_notes.ps1` 当正文，并上传 `MlsmoonSkillManager-Setup-*.exe` | 没让发版就不要改 `VERSION`、不要打 tag。对照 `mlsmoon-release` |
-| `-size` | 跑 `Scripts\file_budget.ps1`：默认 300 行，例外/债务见 `mlsmoon-self-iterate/file-budget.json` | 新超标必须拆。债务文件只准缩短。不要把 ViewModel 改成例外 |
+| `-release` | `VERSION` 是 `X.Y.Z`；`CHANGELOG.md` 有对应 `## [VERSION]`（英文在上、中文在下、`---` 分隔）；`release.yml` 要求 tag 在 `origin/release` 上，用 `release_notes.ps1` 当正文，并上传 `MlsmoonSkillManager-Setup-*.exe` | 没让发版就不要改 `VERSION`、不要打 tag。对照 `mlsmoon-release` |
+| `-size` | 跑 `Scripts\file_budget.ps1`：300 行只是提示，超了不失败 | 不要为了行数拆文案或挤表达式。职责混了再拆。对照 `mlsmoon-self-iterate` |
 | `-all` | build + catalog + install + workspace + sync + release + size；gh/ui 不自动跑 | 需要再显式加 `-gh` / `-ui` |
 
 ## 不要做

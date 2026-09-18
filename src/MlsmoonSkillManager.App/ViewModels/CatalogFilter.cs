@@ -151,7 +151,16 @@ public sealed class CatalogFilter : ObservableObject
             return;
         }
 
-        var group = chip.Group == "install" ? Installs : chip.Group == "kind" ? Kinds : Engines;
+        var group = Installs;
+        if (chip.Group == "kind")
+        {
+            group = Kinds;
+        }
+        else if (chip.Group == "engine")
+        {
+            group = Engines;
+        }
+
         foreach (var item in group)
         {
             item.IsSelected = item == chip;

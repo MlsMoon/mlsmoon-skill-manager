@@ -20,6 +20,8 @@ GitHub 条目用本机 `gh repo view owner/name --json name,visibility,isPrivate
 
 companion 的权限跟所属 Plugin，不要单独 `gh repo view`。
 
+本仓库维护：`gh pr create` / 开 PR 只有用户明确说「提 PR / 开 PR / create PR」才做。说「开一个 dev」是跑 `Scripts\rundev.bat`，不是提 PR。提交、推分支也一样，用户没点名就不要做。
+
 ## 局域网探测
 
 分两步：

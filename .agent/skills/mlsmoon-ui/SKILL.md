@@ -16,6 +16,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 - `ThemeManager` 只替换 Dark/Light 字典，`Themes/Controls.xaml` 始终合并
 - 自定义控件必须盖掉 WPF 默认 `ControlBrush`（浅色系统底），不要露出系统白底
 - 新界面先拼 `Controls/` 里的控件，不要在 `MainWindow.xaml` 再画一套卡片边框
+- `ItemCard` 的 Actions 必须单独一列（Auto），不要和标题/正文抢同一层。叠上去看起来能点，实际点到的是下面的文字，打开目录会没反应
 - 扫描 / 对照 Git 时 `ItemCard` 整卡是 0–100 进度条（`IsLoading` + `LoadText` + `LoadProgress`）：留下条目名、当前步骤文案和百分比。不要用扫光动画冒充进度，也不要只在卡片正文里写「正在对照」
 - 卡片权限（可访问 / public / 无权限）跟 Kind、引擎一样用 `Badge`，不要在标题右侧挂裸绿色 `StatusLabel`
 - Kind 角标：Skill / Plugin / Package 分开。Package 用 `BadgeAppearance.Package`，不要再标成 Plugin 或只写「局域网」
@@ -54,11 +55,13 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 两把锁分开，本机可以同时开一个 DEV 和一个已安装 exe。右上角版本号旁边，DEV 必须有醒目 `DEV` 角标。
 
+用户说「开一个 dev / rundev / 开 DEV」= 跑 `Scripts\rundev.bat`，把本机 Debug 窗口拉起来给人看。不要理解成开 GitHub PR、也不要为此新建 `dev/*` 分支。
+
 ## 不要做
 
 - 为 Theme 字符串、mutex 名字、按钮文案写 Theory
 - 悬停放大卡片或按钮
 - 切设置 Tab 时改对话框宽度
-- 继续往 `MainViewModel.cs` / `MainWindow.xaml` 堆职责；超行先拆再改
+- 继续往 `MainViewModel.cs` / `MainWindow.xaml` 堆另一摊职责；已经读不下去再拆，不要为了行数挤代码
 
-改完跑 `-t -ui`。`Scripts/ui_flow.py` 是整段流程：自己编译、后台开 `--ui-test`（`MlsmoonUiTest`，不激活、不进任务栏、屏外且透明），只用 InvokePattern 点设置 / 连接 / 位置 / 打开目录 / 筛选芯片，写 probe。不要 `SetActive`、不要 `Click`、不要 `SendKeys`，以免抢用户焦点。`--ui-test` 跳过 gh/git 扫描。启动进度条只走一轮。卡片按钮的 `Command` 必须带 `CommandParameter`，且 `CanExecute(null)` 不能把按钮永远灰掉。
+改完跑 `-t -ui`。`Scripts/ui_flow.py` 是整段流程：自己编译、后台开 `--ui-test`（`MlsmoonUiTest`，不激活、不进任务栏、屏外且透明），只用 InvokePattern 点设置 / 连接 / 位置 / 打开目录 / 筛选芯片，写 probe。不要 `SetActive`、不要 `Click`、不要 `SendKeys`，以免抢用户焦点。`--ui-test` 跳过 gh/git 扫描。启动进度条只走一轮。卡片「打开目录」绑行上的 `OpenFolderCommand`，不要再绕 Window + `CanExecute(null)`。其它卡片按钮的 `Command` 必须带 `CommandParameter`，且 `CanExecute(null)` 不能把按钮永远灰掉。真开文件夹走 `Shell.Application.Explore`，不要只丢一个没引号的 `explorer.exe` 路径。

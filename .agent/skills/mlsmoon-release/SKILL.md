@@ -34,6 +34,35 @@ description: 维护 VERSION、Inno Setup、develop/release CI、GitHub Release �
 
 `CHANGELOG.md` 必须有对应 `## [VERSION]`，写用户能看懂的条目，不是 compare 链接。
 
+## Changelog 语文
+
+每个新版本段落：**先写英文，再在下面补中文**。GitHub Release 会整段抽走，所以两种语言都要在 `## [VERSION]` 里。
+
+```
+## [X.Y.Z] - YYYY-MM-DD
+
+English lead. What a user can notice.
+
+### Catalog
+
+- English bullets.
+
+---
+
+中文提要。和上面同一组变化。
+
+### 清单
+
+- 中文条目。
+```
+
+- 英文在上，用 `---` 隔开中文。中文是同一组要点的译文，不要只写英文或只写中文
+- 标题、日期、`###` 小节中英可以各写一套（Catalog / Workspace / UI ↔ 清单 / 工作区 / 界面）
+- 已发布、当时只有中文的旧段落不要为了格式去改
+- 不要为了省行把中文删掉，也不要把两种语言揉进同一条 bullet
+
+发版检查清单第 2 步：`## [VERSION]` 里必须能看到英文正文和汉字译文。
+
 ## 本地打包
 
 - `Scripts\build.bat`；有 Inno Setup 6 时再 `Scripts\build_installer.bat`
@@ -57,7 +86,7 @@ DEV（`rundev` / Debug / `--dev`）关掉整条应用更新：设置没有「更
 ## Agent 发版检查清单
 
 1. `VERSION` 已按规则改并提交在 `develop`
-2. `CHANGELOG.md` 已写好 `## [VERSION]`
+2. `CHANGELOG.md` 已写好 `## [VERSION]`：英文在上、中文在下，中间 `---`
 3. `git fetch origin release` 后快进合并、`git push origin release`
 4. 在该 commit 打 `v` + VERSION，`git push origin vX.Y.Z`
 5. 等 `release.yml` 变绿，Release 页能看到 Setup，说明与 changelog 一致

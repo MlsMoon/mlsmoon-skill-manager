@@ -203,8 +203,7 @@
                                                         AutomationProperties.Name="打开目录"
                                                         AutomationProperties.AutomationId="{Binding Name, StringFormat=OpenInstallFolder-{0}}"
                                                         Visibility="{Binding ShowOpenFolder, Converter={StaticResource VisibleIfTrue}}"
-                                                        Command="{Binding DataContext.OpenInstallFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"/>
+                                                        Command="{Binding OpenFolderCommand}"/>
                                                 <Button Style="{StaticResource DangerButton}" Content="卸载"
                                                         Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>

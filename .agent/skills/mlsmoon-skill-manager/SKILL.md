@@ -22,7 +22,7 @@ GitHub 仓库：`MlsMoon/moon-game-dev-tool-manager`。界面产品名是 Moon G
 | 主题、控件、设置对话框、单实例、动效 | `.agent/skills/mlsmoon-ui/SKILL.md` |
 | `VERSION`、Inno、CI、GitHub Release、应用内更新 | `.agent/skills/mlsmoon-release/SKILL.md` |
 | `-t`、子 agent、禁止 mock | `.agent/skills/mlsmoon-verify/SKILL.md` |
-| 收工同步 skill、单文件行数、超限拆文件 | `.agent/skills/mlsmoon-self-iterate/SKILL.md` |
+| 收工同步 skill、行数提示（非硬卡）、批处理补全 | `.agent/skills/mlsmoon-self-iterate/SKILL.md` |
 
 一次改多个模块就读多份。不要为了省事只读本路由。
 
@@ -41,4 +41,4 @@ GitHub 仓库：`MlsMoon/moon-game-dev-tool-manager`。界面产品名是 Moon G
 
 ## 收工
 
-改完先对照 `mlsmoon-self-iterate`：模块 skill 是否还准、单文件是否超 300 行。要验收再读 `mlsmoon-verify`，开子 agent 跑 `-t`。不要加传统单测或 mock。
+改完先对照 `mlsmoon-self-iterate`：模块 skill 是否还准。行数只是提示。要验收再读 `mlsmoon-verify`，开子 agent 跑 `-t`。不要加传统单测或 mock。

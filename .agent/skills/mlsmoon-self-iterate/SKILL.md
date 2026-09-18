@@ -1,13 +1,13 @@
 ---
 name: mlsmoon-self-iterate
-description: 收工时同步模块 skill，并强制单文件行数预算。适用于任务收尾、用户说自迭代 / 更新 skill / 文件太长 / 拆模块，或改完代码后 skill 可能过期、文件超过 300 行。
+description: 收工时同步模块 skill，并按可读性看待单文件体量。适用于任务收尾、用户说自迭代 / 更新 skill / 文件太长 / 拆模块，或改完代码后 skill 可能过期。
 ---
 
 # 自迭代
 
-本仓库的约定写在模块 skill 里。代码或流程变了，对应 skill 必须一起改。单文件默认 300 行；只有预算表里的少数例外可以更长，其余超限必须先拆再收工。
+本仓库的约定写在模块 skill 里。代码或流程变了，对应 skill 必须一起改。
 
-机器可读预算：同目录 `file-budget.json`。检查：`Scripts\file_budget.bat`（`-t -size` 也会跑）。
+机器可读体量提示：同目录 `file-budget.json`。检查：`Scripts\file_budget.bat`（`-t -size` 也会跑）。**只出提示，不因此失败。**
 
 ## 什么时候跑
 
@@ -22,29 +22,36 @@ description: 收工时同步模块 skill，并强制单文件行数预算。适�
 3. 代码或文档和 skill 分叉了：改 skill，不要只改代码。
 4. 新约定写进**那一个**模块 skill。路由表只加一行链接。
 5. 出现新模块（新的职责面，不是多一个 helper）：新建 skill，登记到 `mlsmoon-skill-manager`。
-6. `Scripts\file_budget.bat`。失败就按下面拆文件，不要先交工。
-7. 动过预算表里的债务文件：禁止再变长。本次若还要往里加逻辑，先拆到 300 行以下，再把该路径移出 `debt`。
-8. 要验收时读 `mlsmoon-verify`，开子 agent 跑 `-t`。
+6. `Scripts\file_budget.bat`。超 300 行只是提醒：职责已经混在一起、读不下去时再拆。
+7. 要验收时读 `mlsmoon-verify`，开子 agent 跑 `-t`。
 
 ## 行数
 
 物理行（含空行）。范围：`src/**/*.cs`、`src/**/*.xaml`、`Scripts/**/*.ps1`、`tests/**/*.cs`、`.agent/skills/**/*.md`。
 
-| 档 | 行数 | 怎么做 |
-|---|---|---|
-| 默认上限 | 300 | 新文件和已合规文件不得越过 |
-| 预警 | 250 | 还能改，但下一处职责切开就拆，不要再堆 |
-| 必须拆 | >300 且不在例外 | 本轮拆完。不要只写「以后再拆」 |
-| 例外 | `exceptions` | 只能是主题资源字典这类拆了会对不齐的文件。每条写 `reason`。不要把 ViewModel / 服务 / 测试当例外 |
-| 债务 | `debt` | 历史超标。`ceiling` 是当前行数，只准少不准多。下次改职责必须拆掉并移出 |
+300 行是**观感提示**，不是硬卡。`-t -size` 只打印 hint，exit 0。
 
-`Themes/Controls.xaml` 是共享控件模板，允许超。`MainViewModel.cs`、`MainWindow.xaml`、安装/Git 服务**不是**例外。
+| 档 | 怎么做 |
+|---|---|
+| 大约 250+ | 还能改。下一处如果是新职责，优先开新文件 |
+| 大约 300+ | 看这个文件是不是已经混了好几件事。混了就按模块边界拆；单一职责、读得下去就留着 |
+| `exceptions` | 主题资源字典这类拆了对不齐的文件。写 `reason` |
+| `debt` | 已经偏长的历史文件，提醒下次顺手拆，**不禁止变长** |
+
+拆的理由是可读、职责清楚，不是凑行数。
+
+### 不要为了行数做的事
+
+- 把一段说明拆成好多短句或另开一层文件，只为少几行
+- 把几个判断挤成一行三元 / 嵌套 `?:` / 超长表达式
+- 删空行、把代码粘成一行
+- 用 `partial class` 把同一堆逻辑切成薄片充数
 
 ## 怎么拆
 
-按模块 skill 的边界拆，不要用 `partial class` 把同一堆逻辑切成薄片充数。
+按模块 skill 的边界拆，只在文件已经难读时动手。
 
-| 现在超了 | 拆向 |
+| 已经偏长 | 真要拆时往哪 |
 |---|---|
 | `MainViewModel.cs` | workspace / install / access / settings / update 各一个协作对象；主 VM 只留壳和命令转发 |
 | `MainWindow.xaml` | 工作区栏、卡片列表、设置内容改成已有 `Controls/` 或独立 XAML |
@@ -53,7 +60,17 @@ description: 收工时同步模块 skill，并强制单文件行数预算。适�
 | `SkillRowViewModel.cs` | 展示字段 vs Git/权限刷新 |
 | `CatalogAndInstallTests.cs` | 按 catalog 合并 / 路径 / companion 拆类，仍禁止 mock |
 
-SKILL.md 本身也走 300 行。细节放到同目录一层引用，不要套娃。
+SKILL.md 写清楚即可，不要为了行数再套一层文件。
+
+## 批处理
+
+`Scripts/` 里每个 `.ps1`（以及 `ui_flow.py`）都要有同名 `.bat`，完整覆盖那条命令：
+
+- `cd /d "%~dp0.."` 回到仓库根
+- 调用对应脚本并转发 **全部参数** `%*`
+- `exit /b %ERRORLEVEL%`
+
+不要只写半截、丢掉参数或返回码。双击或从资源管理器跑 bat，应和直接跑 ps1/py 一样。
 
 ## 改 skill 时
 
@@ -64,7 +81,5 @@ SKILL.md 本身也走 300 行。细节放到同目录一层引用，不要套娃
 
 ## 不要做
 
-- 超限文件再加一大段「顺便」
-- 把债务路径改成例外来过检查
-- 为了过预算删空行或把代码挤成一行
+- 为了过 `-t -size` 去挤代码或拆文案
 - 新建第二个总说明书

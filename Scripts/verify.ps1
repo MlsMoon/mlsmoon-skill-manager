@@ -52,7 +52,9 @@ if ($tags -contains "build") {
 if ($tags -contains "catalog") {
     Invoke-Step "catalog" {
         $path = Join-Path $root "catalog\skills.json"
-        $catalog = Get-Content -Raw -Encoding UTF8 $path | ConvertFrom-Json
+        $raw = Get-Content -Raw -Encoding UTF8 $path
+        Assert-True ($raw -notmatch '(?m)^\s*"(name|description)"\s*:') "public catalog must not set name/description"
+        $catalog = $raw | ConvertFrom-Json
         $skills = @($catalog.skills)
         $plugins = @($catalog.plugins)
         $packages = @($catalog.packages)
@@ -60,16 +62,12 @@ if ($tags -contains "catalog") {
         foreach ($item in $skills) {
             Assert-True (-not [string]::IsNullOrWhiteSpace($item.id)) "skill missing id"
             Assert-True ($ids.Add([string]$item.id)) "duplicate id: $($item.id)"
-            Assert-True (-not $item.PSObject.Properties['name'] -or [string]::IsNullOrWhiteSpace($item.name)) "public skill $($item.id) must not set name"
-            Assert-True (-not $item.PSObject.Properties['description'] -or [string]::IsNullOrWhiteSpace($item.description)) "public skill $($item.id) must not set description"
         }
 
         $companionIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($item in @($plugins) + @($packages)) {
             Assert-True (-not [string]::IsNullOrWhiteSpace($item.id)) "plugin/package missing id"
             Assert-True ($ids.Add([string]$item.id)) "duplicate id: $($item.id)"
-            Assert-True (-not $item.PSObject.Properties['name'] -or [string]::IsNullOrWhiteSpace($item.name)) "public $($item.id) must not set name"
-            Assert-True (-not $item.PSObject.Properties['description'] -or [string]::IsNullOrWhiteSpace($item.description)) "public $($item.id) must not set description"
             if ($item.installPath) {
                 Assert-True ($item.installPath -notmatch '\.\.') "installPath escapes workspace: $($item.installPath)"
             }
@@ -77,8 +75,6 @@ if ($tags -contains "catalog") {
                 Assert-True ($companionIds.Add([string]$companion.id)) "duplicate companion id: $($companion.id)"
                 $inSkills = $skills | Where-Object { $_.id -eq $companion.id }
                 Assert-True (-not $inSkills) "companion $($companion.id) must not be in skills[]"
-                Assert-True (-not $companion.PSObject.Properties['name'] -or [string]::IsNullOrWhiteSpace($companion.name)) "companion $($companion.id) must not set name"
-                Assert-True (-not $companion.PSObject.Properties['description'] -or [string]::IsNullOrWhiteSpace($companion.description)) "companion $($companion.id) must not set description"
             }
         }
 
@@ -281,6 +277,9 @@ if ($tags -contains "release") {
         $notesText = Get-Content -Raw -Encoding UTF8 $notes
         Assert-True ($notesText.Trim().Length -ge 40) "CHANGELOG section $version is too short"
         Assert-True ($notesText -notmatch '(?m)^\s*(\*\*)?Full Changelog(\*\*)?\s*:') "CHANGELOG section must not be a Full Changelog compare link"
+        Assert-True ($notesText -match '[A-Za-z]{8,}') "CHANGELOG section $version must start with English notes"
+        Assert-True ($notesText -match '[\u4e00-\u9fff]{4,}') "CHANGELOG section $version must include Chinese notes below the English"
+        Assert-True ($notesText -match '(?m)^---\s*$') "CHANGELOG section $version must separate English and Chinese with ---"
         Write-Host "VERSION $version"
     }
 }

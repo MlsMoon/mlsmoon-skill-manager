@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using MlsmoonSkillManager.App;
 
@@ -17,44 +18,97 @@ public static class ShellFolders
 
         try
         {
-            if (create && !Directory.Exists(path) && !File.Exists(path))
+            var full = Path.GetFullPath(path.Trim());
+            if (create && !Directory.Exists(full) && !File.Exists(full))
             {
-                Directory.CreateDirectory(path);
+                Directory.CreateDirectory(full);
             }
 
-            if (!File.Exists(path) && !Directory.Exists(path))
+            if (!File.Exists(full) && !Directory.Exists(full))
             {
-                log($"找不到 {path}");
+                log($"找不到 {full}");
                 return;
             }
 
-            log($"已打开 {path}");
-            var uiTest = Application.Current is App app && app.IsUiTest;
-            if (uiTest)
+            if (Application.Current is App app && app.IsUiTest)
             {
                 Directory.CreateDirectory(probeDirectory);
                 File.AppendAllText(
                     Path.Combine(probeDirectory, "ui-probe.log"),
-                    "open-folder\t" + path + Environment.NewLine);
+                    "open-folder\t" + full + Environment.NewLine);
+                log($"已打开 {full}");
                 return;
             }
 
-            if (Directory.Exists(path))
+            if (Directory.Exists(full))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "explorer.exe",
-                    Arguments = path,
-                    UseShellExecute = true
-                });
-                return;
+                OpenDirectory(full);
+            }
+            else
+            {
+                Process.Start(new ProcessStartInfo { FileName = full, UseShellExecute = true });
             }
 
-            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            log($"已打开 {full}");
         }
         catch (Exception ex)
         {
             log($"无法打开 {path}: {ex.Message}");
+        }
+    }
+
+    private static void OpenDirectory(string path)
+    {
+        if (Explore(path))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open"
+            });
+            return;
+        }
+        catch
+        {
+        }
+
+        var quoted = "\"" + path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + "\"";
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = "/n," + quoted,
+            UseShellExecute = false
+        });
+    }
+
+    private static bool Explore(string path)
+    {
+        try
+        {
+            var type = Type.GetTypeFromProgID("Shell.Application");
+            if (type is null)
+            {
+                return false;
+            }
+
+            var shell = Activator.CreateInstance(type);
+            if (shell is null)
+            {
+                return false;
+            }
+
+            type.InvokeMember("Explore", BindingFlags.InvokeMethod, null, shell, [path]);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 }

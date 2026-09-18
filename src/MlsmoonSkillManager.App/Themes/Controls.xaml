@@ -1110,11 +1110,12 @@
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
-                            <DockPanel x:Name="Body" Margin="{TemplateBinding Padding}">
-                            <ContentPresenter DockPanel.Dock="Right"
-                                              VerticalAlignment="Top"
-                                              Content="{TemplateBinding Actions}"/>
-                            <StackPanel>
+                            <Grid x:Name="Body" Margin="{TemplateBinding Padding}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
                                 <DockPanel>
                                     <ContentPresenter Content="{TemplateBinding Badge}"
                                                       Margin="0,0,6,0"
@@ -1136,7 +1137,10 @@
                                            Text="{TemplateBinding Description}"/>
                                 <ContentPresenter Content="{TemplateBinding Content}" Margin="0,2,0,0"/>
                             </StackPanel>
-                        </DockPanel>
+                            <ContentPresenter Grid.Column="1"
+                                              VerticalAlignment="Top"
+                                              Content="{TemplateBinding Actions}"/>
+                        </Grid>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>

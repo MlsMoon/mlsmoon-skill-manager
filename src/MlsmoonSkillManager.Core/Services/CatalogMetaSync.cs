@@ -60,15 +60,9 @@ public sealed class CatalogMetaSync
             return cached;
         }
 
-        if (TryReadLocal(skill, file, commit, branch) is { } local)
-        {
-            _cache.Upsert(local);
-            return local;
-        }
-
         if (!canReach)
         {
-            return cached;
+            return TryReadLocal(skill, file, commit, branch) ?? cached;
         }
 
         commit = string.IsNullOrWhiteSpace(commit)
@@ -83,7 +77,7 @@ public sealed class CatalogMetaSync
         var text = await FetchAsync(skill, file, branch, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(text))
         {
-            return cached;
+            return TryReadLocal(skill, file, commit, branch) ?? cached;
         }
 
         var parsed = CatalogMeta.Parse(text);

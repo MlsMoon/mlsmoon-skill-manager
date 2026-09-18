@@ -32,8 +32,7 @@ $files = foreach ($dirName in @($budget.roots)) {
     }
 }
 
-$failed = [System.Collections.Generic.List[string]]::new()
-$warnings = [System.Collections.Generic.List[string]]::new()
+$hints = [System.Collections.Generic.List[string]]::new()
 $okOver = 0
 
 foreach ($file in $files) {
@@ -45,7 +44,7 @@ foreach ($file in $files) {
     if ($null -ne $ex) {
         $ceiling = if ($ex.ceiling) { [int]$ex.ceiling } else { [int]::MaxValue }
         if ($lines -gt $ceiling) {
-            $failed.Add("EXCEPTION OVER $rel : $lines > ceiling $($ex.ceiling) ($($ex.reason))")
+            $hints.Add("exception $rel : $lines > $($ex.ceiling) ($($ex.reason))")
         }
         else {
             $okOver++
@@ -57,35 +56,28 @@ foreach ($file in $files) {
     if ($null -ne $owed) {
         $ceiling = [int]$owed.ceiling
         if ($lines -gt $ceiling) {
-            $failed.Add("DEBT GREW $rel : $lines > ceiling $ceiling; split: $($owed.split)")
+            $hints.Add("grew $rel : $lines > last noted $ceiling; split when mixed: $($owed.split)")
         }
         elseif ($lines -le $limit) {
-            $warnings.Add("DEBT CLEARED $rel : $lines <= $limit, remove from file-budget.json debt")
+            $hints.Add("cleared $rel : $lines <= $limit, can drop from file-budget.json debt")
         }
         else {
-            $warnings.Add("debt $rel : $lines / ceiling $ceiling; next touch must split: $($owed.split)")
+            $hints.Add("long $rel : $lines; split when mixed: $($owed.split)")
         }
         continue
     }
 
     if ($lines -gt $limit) {
-        $failed.Add("OVER $rel : $lines > $limit (refactor, do not add to exceptions)")
+        $hints.Add("over $rel : $lines > $limit (hint only; split if mixed duties, keep readable)")
     }
     elseif ($lines -ge $warn) {
-        $warnings.Add("warn $rel : $lines >= $warn")
+        $hints.Add("near $rel : $lines >= $warn")
     }
 }
 
-foreach ($item in $warnings) {
-    Write-Host "WARN $item"
+foreach ($item in $hints) {
+    Write-Host "HINT $item"
 }
 
-if ($failed.Count -gt 0) {
-    foreach ($item in $failed) {
-        Write-Host "FAIL $item"
-    }
-    throw "file budget failed: $($failed.Count) file(s) over limit"
-}
-
-Write-Host "file budget ok: limit $limit, $($files.Count) files, $okOver exception(s), $($warnings.Count) warn(s)"
+Write-Host "file budget hint: guide $limit, $($files.Count) files, $okOver exception(s), $($hints.Count) hint(s)"
 exit 0

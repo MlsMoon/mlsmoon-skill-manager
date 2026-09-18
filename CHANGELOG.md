@@ -6,13 +6,38 @@ GitHub Release 正文只从本文件抽取对应版本段落。每个已发布�
 ## [X.Y.Z] - YYYY-MM-DD
 ```
 
-写用户能感知的变化。不要只放 `Full Changelog: vA...vB` 那种对比链接。发版脚本见 `Scripts/release_notes.ps1`。
+Write what a user can notice. English first, Chinese below, separated by `---`. Do not ship a compare link as the only note. Extractor: `Scripts/release_notes.ps1`.
 
 ## [0.2.4] - 2026-09-18
 
-Package 独立成类，卡片能分清本机和远端谁超前，打开目录和启动扫描按一次算一次。
+Packages are their own catalog kind. Cards show whether the local tree is ahead of or behind the remote. Opening a folder and the startup scan each run once.
 
 ### Catalog
+
+- Add **Package** next to Skill / Plugin. LAN URP-style entries belong in `packages`, not `plugins`.
+- Companion skills still install with the parent and do not appear as standalone catalog items.
+- Card titles and summaries come from the repo `SKILL.md` / README, cached by remote commit. The public catalog no longer ships hand-written `name` / `description`.
+
+### Workspace
+
+- Default Skill root is `.agents`. Old `.agent` is only a disk alias; `.codex` is also detected.
+- A workspace copy that already has `.git` counts as installed and is not overwritten as a whole tree.
+- When the file tree already matches the remote tip, the card shows current. An empty SHA is not treated as behind.
+- Cards follow VS Code: **↓ Pull** / **↑ Push** stay visible, bright when usable, dim when not. Do not say "update to remote".
+
+### UI
+
+- The startup progress bar runs once.
+- Open Folder launches Explorer.
+- Access (reachable / public) uses a badge, not bare green text.
+- DEV settings have no Updates tab and do not check or overwrite the installed app.
+- While scanning, the whole card is a progress bar.
+
+---
+
+Package 独立成类，卡片能分清本机和远端谁超前，打开目录和启动扫描按一次算一次。
+
+### 清单
 
 - 清单增加 **Package**，和 Skill / Plugin 分开。局域网 URP 一类条目走 Package，不再标成 Plugin。
 - companion skill 仍随插件安装，不单独出现在清单里。

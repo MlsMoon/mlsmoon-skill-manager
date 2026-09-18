@@ -1,4 +1,5 @@
 {
+  "enforcement": "hint",
   "limit": 300,
   "warn": 250,
   "roots": [

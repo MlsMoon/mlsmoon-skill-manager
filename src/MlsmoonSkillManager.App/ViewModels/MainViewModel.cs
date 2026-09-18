@@ -89,6 +89,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var row = new SkillRowViewModel(skill);
             row.SelectedBranchChanged += OnSelectedBranchChanged;
+            row.OpenFolderRequested += OnOpenFolderRequested;
             AllSkills.Add(row);
         }
 
@@ -103,7 +104,12 @@ public sealed class MainViewModel : ObservableObject
         PushCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel push && push.CanPush);
         UninstallCommand = new RelayCommand(async p => await UninstallAsync(p as SkillRowViewModel).ConfigureAwait(true), CanMutate);
         OpenInstallFolderCommand = new RelayCommand(
-            p => OpenPath((p as SkillRowViewModel)?.InstallFolder),
+            p => OpenPath(p switch
+            {
+                SkillRowViewModel row => row.InstallFolder,
+                string folder => folder,
+                _ => null
+            }),
             _ => HasOpenWorkspace);
         CloseConflictCommand = new RelayCommand(_ => IsConflictOpen = false);
         OpenConflictFolderCommand = new RelayCommand(_ => OpenPath(ConflictFolder), _ =>
@@ -716,6 +722,14 @@ public sealed class MainViewModel : ObservableObject
         ConflictFolder = row.InstallFolder;
         IsConflictOpen = true;
         Log($"{row.Name}: {row.Git.Message}");
+    }
+
+    private void OnOpenFolderRequested(object? sender, EventArgs e)
+    {
+        if (sender is SkillRowViewModel row)
+        {
+            OpenPath(row.InstallFolder);
+        }
     }
 
     private void OnSelectedBranchChanged(object? sender, EventArgs e)

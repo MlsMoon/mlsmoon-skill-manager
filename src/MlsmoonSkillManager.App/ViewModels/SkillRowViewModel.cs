@@ -35,9 +35,12 @@ public sealed class SkillRowViewModel : ObservableObject
         }
 
         _suppressBranch = false;
+        OpenFolderCommand = new RelayCommand(_ => OpenFolderRequested?.Invoke(this, EventArgs.Empty));
     }
 
     public event EventHandler? SelectedBranchChanged;
+    public event EventHandler? OpenFolderRequested;
+    public RelayCommand OpenFolderCommand { get; }
 
     public SkillDefinition Definition { get; }
     public string Name => Definition.DisplayName;

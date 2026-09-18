@@ -5,7 +5,7 @@ description: 维护公开 catalog、本机 override、引擎标记，以及新�
 
 # Catalog
 
-代码：`CatalogStore`、`SkillDefinition`、`GameEngines`、`ToolKind`。清单在 `catalog/`。
+代码：`CatalogStore`、`CatalogMeta` / `CatalogMetaSync`、`SkillDefinition`、`GameEngines`、`ToolKind`。清单在 `catalog/`。
 
 只安装清单（及本机 override）里登记的条目。不在清单和 override 里的本地文件一律不管。真实 NAS 地址禁止写进公开仓库。
 
