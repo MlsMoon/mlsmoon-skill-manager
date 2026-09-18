@@ -688,7 +688,9 @@ public sealed class MainViewModel : ObservableObject
         {
             if (row.IsCompanion)
             {
-                Log($"{row.Name} 是随附 Skill，请安装所属 Plugin，不能单独当 Skill 安装。");
+                Log(row.Definition.IsRouting
+                    ? $"{row.Name} 是路由 Skill，请安装所属 Plugin。"
+                    : $"{row.Name} 是随附 Skill，请安装所属 Plugin，不能单独当 Skill 安装。");
                 return;
             }
 
@@ -1064,8 +1066,41 @@ public sealed class MainViewModel : ObservableObject
         OpenInstallFolderCommand?.RaiseCanExecuteChanged();
     }
 
+    private void SyncRoutingRows()
+    {
+        var result = CatalogRouting.Bind(
+            AllSkills.Select(row => row.Definition).ToList(),
+            string.IsNullOrWhiteSpace(WorkspacePath) ? null : WorkspacePath,
+            _paths);
+        foreach (var id in result.RemoveIds)
+        {
+            var existing = AllSkills.FirstOrDefault(row =>
+                row.Definition.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                AllSkills.Remove(existing);
+            }
+        }
+
+        foreach (var skill in result.Add)
+        {
+            if (AllSkills.Any(row => row.Definition.Id.Equals(skill.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var row = new SkillRowViewModel(skill);
+            row.SelectedBranchChanged += OnSelectedBranchChanged;
+            row.OpenFolderRequested += OnOpenFolderRequested;
+            AllSkills.Add(row);
+        }
+
+        ApplyGitWriteFlags();
+    }
+
     private void RefreshInstallStatuses(bool inspectGit = true)
     {
+        SyncRoutingRows();
         foreach (var row in AllSkills)
         {
             row.ApplyDisplay();

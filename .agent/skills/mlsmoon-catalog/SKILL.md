@@ -17,7 +17,7 @@ description: 维护公开 catalog、本机 override、引擎标记，以及新�
 - 本地 `Scripts/build.ps1` / 安装包按本机 `catalog/` 原样打包，有 override 就打进去；文件本身不要提交
 - GitHub checkout 没有 override，所以 CI / GitHub Release 的包没有内网地址
 
-`CatalogStore` 先读捆绑 `skills.json`，再按 `id` 合并捆绑 override、仓库旁 override。`kind` 在加载时标成 skill / plugin / package；`companionSkills` 展开成 `ToolKind.Companion`，带 `ParentPluginId`（父级可以是 Plugin 或 Package）。
+`CatalogStore` 先读捆绑 `skills.json`，再按 `id` 合并捆绑 override、仓库旁 override。`kind` 在加载时标成 skill / plugin / package。没有 `.mlsmoon` 的旧 Plugin / Package 仍把 catalog `companionSkills` 展开成 `ToolKind.Companion`。有 `.mlsmoon/skill.json` 且 `kind` 为 `routing` 时，只合成 **一条路由 Skill**（`CatalogRouting`），不要再展开 `Skills~` 里的详细 skill。
 
 卡片上的 **名称 / 简介不写进清单**。Skill / 随附 Skill 读仓库里的 `SKILL.md` 头（`name`、`description`）；Plugin / Package 读 README 标题和第一段。解析在 `CatalogMeta`，拉取在 `CatalogMetaSync`。缓存是 `%LocalAppData%\MlsmoonSkillManager\cache\catalog-meta.json`，按 `id` + 仓库 + 文件 + 远端 commit。commit 没变就不再抓；设置里清空缓存、或对照 Git 发现 tip 变了，才会重读。清单里若仍写 `name` / `description`，只当还没缓存时的退路，公开 `skills.json` 不要带这两项。`readmePath` 仅 LAN 文件名不是 `Readme.md` 时才写。
 
@@ -28,7 +28,7 @@ description: 维护公开 catalog、本机 override、引擎标记，以及新�
 - `["all"]` 或缺省：全引擎（现在等于 Unity + Godot）
 - `["unity"]` / `["godot"]`：只适配列出的引擎
 - 通用资产类（PSD、通用 3D 模型读写）写 `all`
-- 引擎专用条目写具体引擎。`spine-gpu-skinning` **只支持 Unity**；随附 Skill 继承 Plugin 的 `engines`
+- 引擎专用条目写具体引擎。`spine-gpu-skinning` **只支持 Unity**；路由 Skill 继承 Plugin 的 `engines`
 - 还没有 Unreal / 其它引擎，不要写进 catalog
 
 实现：`GameEngines.Normalize`。空 / `all` / `*` 都当成当前全部已支持引擎。
@@ -47,7 +47,7 @@ Skill：
 }
 ```
 
-仓库根即 skill 时 `sourcePath` 为 `.`，且必须含 `SKILL.md`。Plugin 仓库里的随附 Skill 用相对 `sourcePath`，只写在 `companionSkills`，例如 `Skills~/gpuspine-use-plugin`。
+仓库根即 skill 时 `sourcePath` 为 `.`，且必须含 `SKILL.md`。Plugin 的宿主入口不要写进 catalog `companionSkills`：在插件仓根目录放 `.mlsmoon/skill.json`（`kind: routing`），安装器按它生成路由 skill。
 
 Plugin 放在同文件的 `plugins` 数组：
 
@@ -57,16 +57,13 @@ Plugin 放在同文件的 `plugins` 数组：
   "repo": "https://github.com/MlsMoon/SpineGpuSkinning",
   "installName": "SpineGpuSkinning",
   "installPath": "Assets/Plugins/SpineGpuSkinning",
-  "engines": ["unity"],
-  "companionSkills": [
-    { "id": "gpuspine-use-plugin", "sourcePath": "Skills~/gpuspine-use-plugin" }
-  ]
+  "engines": ["unity"]
 }
 ```
 
-Plugin **不要求** `SKILL.md`。公开的 SpineGpuSkinning 本体走 Plugin；`gpuspine-use-plugin` 与 `gpuspine-develop-plugin` 只能写在该 Plugin 的 `companionSkills` 里，不要再放进 `skills` 数组。
+Plugin **不要求** `SKILL.md`。公开的 SpineGpuSkinning 本体走 Plugin。包内 `Skills~/gpuspine-use-plugin` 与 `gpuspine-develop-plugin` 留在插件仓，由路由 skill `spine-gpu-skinning-skill` 指向；不要再放进 `skills` 数组，也不要当 catalog companion。旧的 `companionSkills` 只给还没写 `.mlsmoon` 的条目当退路。
 
-Package 放在同文件的 `packages` 数组，和 Plugin 同一套字段（`installPath`、`companionSkills`、局域网 `branches[].manifest`），**不要求** `SKILL.md`。默认装到 `Packages/{installName}`。IGP 的 `UrpPackageIGP` 只写本机 override 的 `packages`，不要放进 `plugins`。
+Package 放在同文件的 `packages` 数组，和 Plugin 同一套字段（`installPath`、局域网 `branches[].manifest`、可选旧 `companionSkills`），**不要求** `SKILL.md`。默认装到 `Packages/{installName}`。IGP 的 `UrpPackageIGP` 只写本机 override 的 `packages`，不要放进 `plugins`。
 
 局域网 Unity 包（不走 GitHub）只放 **用户 override** 的 `packages`，示例用占位符，不要填真实地址：
 

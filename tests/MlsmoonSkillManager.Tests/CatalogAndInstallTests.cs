@@ -248,7 +248,7 @@ public class CatalogAndInstallTests
     }
 
     [Fact]
-    public void PluginInstaller_CopiesIntoAssetsPluginsAndSkipsSkillsTilde()
+    public void PluginInstaller_CopiesSkillsTildeAndMlsmoon()
     {
         var root = CreateTempDir();
         try
@@ -257,14 +257,67 @@ public class CatalogAndInstallTests
             var dest = Path.Combine(root, "Assets", "Plugins", "SpineGpuSkinning");
             Directory.CreateDirectory(Path.Combine(source, "Runtime"));
             Directory.CreateDirectory(Path.Combine(source, "Skills~", "gpuspine-use-plugin"));
+            Directory.CreateDirectory(Path.Combine(source, ".mlsmoon"));
             File.WriteAllText(Path.Combine(source, "README.md"), "plugin");
             File.WriteAllText(Path.Combine(source, "Skills~", "gpuspine-use-plugin", "SKILL.md"), "skill");
-            SkillInstaller.CopySkill(source, dest, extraSkip: new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Skills~" });
+            File.WriteAllText(
+                Path.Combine(source, ".mlsmoon", "skill.json"),
+                """{"id":"spine-gpu-skinning-skill","kind":"routing","parentId":"spine-gpu-skinning"}""");
+            SkillInstaller.CopySkill(source, dest, ProjectCopy.SkipNames);
             SkillInstaller.WriteMarker(dest, new InstallMarker { Id = "spine-gpu-skinning", Repo = "https://github.com/MlsMoon/SpineGpuSkinning", Commit = "abc" }, SkillInstaller.PluginMarkerFileName);
             Assert.True(File.Exists(Path.Combine(dest, "README.md")));
             Assert.True(Directory.Exists(Path.Combine(dest, "Runtime")));
-            Assert.False(Directory.Exists(Path.Combine(dest, "Skills~")));
+            Assert.True(File.Exists(Path.Combine(dest, "Skills~", "gpuspine-use-plugin", "SKILL.md")));
+            Assert.True(File.Exists(MlsmoonSkillConfig.FilePath(dest)));
             Assert.Equal("spine-gpu-skinning", SkillInstaller.ReadMarker(Path.Combine(dest, SkillInstaller.PluginMarkerFileName))?.Id);
+
+            var workspace = root;
+            Directory.CreateDirectory(Path.Combine(workspace, ".agents", "skills", "renamed-router"));
+            MlsmoonSkillConfig.Write(
+                Path.Combine(workspace, ".agents", "skills", "renamed-router"),
+                new MlsmoonSkillFile
+                {
+                    Id = "spine-gpu-skinning-skill",
+                    Kind = "routing",
+                    ParentId = "spine-gpu-skinning"
+                });
+            File.WriteAllText(Path.Combine(workspace, ".agents", "skills", "renamed-router", "SKILL.md"), "route");
+            var routing = MlsmoonSkillConfig.ToRoutingCompanion(
+                new SkillDefinition
+                {
+                    Id = "spine-gpu-skinning",
+                    Name = "SpineGpuSkinning",
+                    Kind = ToolKind.Plugin,
+                    InstallPath = "Assets/Plugins/SpineGpuSkinning"
+                },
+                MlsmoonSkillConfig.Read(dest)!);
+            var status = Assert.Single(new WorkspaceScanner().InspectInstalls(workspace, routing, [".agents"]));
+            Assert.True(status.Installed);
+            Assert.Equal(Path.Combine(workspace, ".agents", "skills", "renamed-router"), status.Path);
+
+            var leftover = new SkillDefinition
+            {
+                Id = "gpuspine-use-plugin",
+                Kind = ToolKind.Companion,
+                ParentPluginId = "spine-gpu-skinning"
+            };
+            var plugin = new SkillDefinition
+            {
+                Id = "spine-gpu-skinning",
+                Name = "SpineGpuSkinning",
+                Kind = ToolKind.Plugin,
+                InstallName = "SpineGpuSkinning",
+                InstallPath = "Assets/Plugins/SpineGpuSkinning",
+                CompanionSkills = [leftover]
+            };
+            leftover.ParentPluginId = plugin.Id;
+            var bound = CatalogRouting.Bind(
+                [plugin, leftover],
+                workspace,
+                new AppPaths(root, Path.Combine(root, "config"), Path.Combine(root, "cache")));
+            Assert.True(Assert.Single(plugin.CompanionSkills).IsRouting);
+            Assert.Equal("spine-gpu-skinning-skill", plugin.CompanionSkills[0].Id);
+            Assert.Contains("gpuspine-use-plugin", bound.RemoveIds);
         }
         finally
         {

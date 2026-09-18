@@ -48,7 +48,7 @@ public sealed class WorkspaceScanner
         var list = new List<RootInstallStatus>();
         foreach (var root in SkillRoots.Normalize(roots))
         {
-            list.Add(DescribeSkillInstall(workspacePath, root, skill.ResolvedInstallName));
+            list.Add(DescribeSkillInstall(workspacePath, root, skill));
         }
 
         return list;
@@ -57,19 +57,16 @@ public sealed class WorkspaceScanner
     private static RootInstallStatus DescribeSkillInstall(
         string workspacePath,
         string root,
-        string installName)
+        SkillDefinition skill)
     {
-        foreach (var disk in SkillRoots.DiskNames(root))
+        var found = MlsmoonSkillConfig.ResolveInstallDirectory(workspacePath, root, skill.Id);
+        if (Directory.Exists(found))
         {
-            var path = SkillInstallPath(workspacePath, disk, installName);
-            if (Directory.Exists(path))
-            {
-                return DescribeInstall(path, root, SkillInstaller.MarkerFileName);
-            }
+            return DescribeInstall(found, root, SkillInstaller.MarkerFileName);
         }
 
         return DescribeInstall(
-            SkillInstallPath(workspacePath, root, installName),
+            WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName),
             root,
             SkillInstaller.MarkerFileName);
     }

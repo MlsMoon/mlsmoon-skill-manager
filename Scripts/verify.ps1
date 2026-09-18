@@ -71,7 +71,16 @@ if ($tags -contains "catalog") {
             if ($item.installPath) {
                 Assert-True ($item.installPath -notmatch '\.\.') "installPath escapes workspace: $($item.installPath)"
             }
+            if ($null -eq $item.companionSkills) {
+                continue
+            }
+
             foreach ($companion in @($item.companionSkills)) {
+                if ($null -eq $companion) {
+                    continue
+                }
+
+                Assert-True (-not [string]::IsNullOrWhiteSpace($companion.id)) "companion missing id on $($item.id)"
                 Assert-True ($companionIds.Add([string]$companion.id)) "duplicate companion id: $($companion.id)"
                 $inSkills = $skills | Where-Object { $_.id -eq $companion.id }
                 Assert-True (-not $inSkills) "companion $($companion.id) must not be in skills[]"
@@ -89,6 +98,9 @@ if ($tags -contains "catalog") {
         Assert-True (@($psd.engines) -contains "all") "open-psd-kit should be all engines"
         Assert-True (@($model.engines) -contains "all") "3d-model-data-reader should be all engines"
         Assert-True ((@($spine.engines) -join ",") -eq "unity") "spine-gpu-skinning should be unity-only"
+        if ($null -ne $spine.companionSkills) {
+            Assert-True (@($spine.companionSkills).Count -eq 0) "spine-gpu-skinning must not list companionSkills; routing lives in the plugin .mlsmoon"
+        }
         $lanHostNeedle = @('172', '16', '20', '223') -join '.'
         $leaks = git -C $root grep -n -I -e $lanHostNeedle --
         if ($LASTEXITCODE -eq 0 -and $leaks) {

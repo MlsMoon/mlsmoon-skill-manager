@@ -24,17 +24,7 @@
       "repo": "https://github.com/MlsMoon/SpineGpuSkinning",
       "installName": "SpineGpuSkinning",
       "installPath": "Assets/Plugins/SpineGpuSkinning",
-      "engines": ["unity"],
-      "companionSkills": [
-        {
-          "id": "gpuspine-use-plugin",
-          "sourcePath": "Skills~/gpuspine-use-plugin"
-        },
-        {
-          "id": "gpuspine-develop-plugin",
-          "sourcePath": "Skills~/gpuspine-develop-plugin"
-        }
-      ]
+      "engines": ["unity"]
     }
   ],
   "packages": []

@@ -53,6 +53,11 @@ public sealed class CatalogMetaSync
         bool canReach,
         CancellationToken cancellationToken = default)
     {
+        if (skill.IsRouting)
+        {
+            return TryReadRouting(skill, commit);
+        }
+
         var file = CatalogMeta.FilePath(skill);
         var cached = _cache.Find(skill.Id);
         if (cached is not null && _cache.Matches(cached, skill, file, commit))
@@ -115,6 +120,38 @@ public sealed class CatalogMetaSync
         {
             companion.ParentPluginName = skill.DisplayName;
         }
+    }
+
+    private CatalogMetaEntry? TryReadRouting(SkillDefinition skill, string? commit)
+    {
+        var workspace = _workspace();
+        if (string.IsNullOrWhiteSpace(workspace))
+        {
+            return null;
+        }
+
+        var dest = MlsmoonSkillConfig.FindDirectory(workspace, SkillRoots.DetectableRoots, skill.Id);
+        if (string.IsNullOrWhiteSpace(dest))
+        {
+            return null;
+        }
+
+        var path = Path.Combine(dest, "SKILL.md");
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        var parsed = CatalogMeta.Parse(File.ReadAllText(path));
+        return new CatalogMetaEntry
+        {
+            Id = skill.Id,
+            Repo = skill.Repo,
+            File = "SKILL.md",
+            Commit = commit ?? "",
+            Name = string.IsNullOrWhiteSpace(parsed.Name) ? skill.Id : parsed.Name,
+            Description = parsed.Description
+        };
     }
 
     private CatalogMetaEntry? TryReadLocal(

@@ -19,7 +19,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 - `ItemCard` 的 Actions 必须单独一列（Auto），不要和标题/正文抢同一层。叠上去看起来能点，实际点到的是下面的文字，打开目录会没反应
 - 扫描 / 对照 Git 时 `ItemCard` 整卡是 0–100 进度条（`IsLoading` + `LoadText` + `LoadProgress`）：留下条目名、当前步骤文案和百分比。不要用扫光动画冒充进度，也不要只在卡片正文里写「正在对照」
 - 卡片权限（可访问 / public / 无权限）跟 Kind、引擎一样用 `Badge`，不要在标题右侧挂裸绿色 `StatusLabel`
-- Kind 角标：Skill / Plugin / Package 分开。Package 用 `BadgeAppearance.Package`，不要再标成 Plugin 或只写「局域网」
+- Kind 角标：Skill / Plugin / Package / 路由 分开。Package 用 `BadgeAppearance.Package`。路由 Skill 用「路由」，不要再标成「随插件」或独立 Skill
 
 ## 控件
 
@@ -29,7 +29,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 - 窗口用 `WindowStyle=None` + `WindowChrome` + 自定义 `TitleBar`，不要系统白底标题栏；深色用 DWM immersive dark mode
 - 壳层：标题栏 → 当前工作区命令条（在工作区列表上方通栏）→ 左侧工作区 | 右侧卡片 → 底部状态栏（只留末行日志）
-- 卡片列表上方是 `CatalogFilterBar`：搜索 + 分段筛选（已安装 / 未安装、Skill / Plugin / Package、Unity / Godot / 全引擎）。多组可叠加。随附 Skill 仍要父级已安装才出现。筛选逻辑在 `CatalogFilter`，不要再往 `MainViewModel` 里堆
+- 卡片列表上方是 `CatalogFilterBar`：搜索 + 分段筛选（已安装 / 未安装、Skill / Plugin / Package、Unity / Godot / 全引擎）。多组可叠加。随附 / 路由 Skill 仍要父级已安装才出现。筛选逻辑在 `CatalogFilter`，不要再往 `MainViewModel` 里堆
 - 标题栏右侧：版本、`DEV` 角标、设置齿轮。有应用更新时齿轮上标「新」
 - DEV 角标用 `Badge Appearance="Dev"`（`DevBadgeBrush` / `DevBadgeTextBrush`）
 

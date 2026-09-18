@@ -37,7 +37,7 @@ public sealed class SkillInstaller
         if (skill.IsLan)
         {
             await new LanSkillInstall(_paths, _git, _workspaceRepo)
-                .RunAsync(skill, workspacePath, nasUser, branch, log, cancellationToken)
+                .RunAsync(skill, workspacePath, roots, nasUser, branch, log, cancellationToken)
                 .ConfigureAwait(false);
             return;
         }
@@ -72,8 +72,8 @@ public sealed class SkillInstaller
                 .ConfigureAwait(false);
             WriteMarker(dest, marker, ProjectCopy.MarkerFileName(skill));
             WriteSnapshot(workspacePath, skill.Id, skill.ResolvedInstallPath, dest, commit, resolvedBranch);
-            await _skillCopy.InstallCompanionsAsync(
-                    skill, cache, repo, commit, resolvedBranch, workspacePath, roots, log, cancellationToken)
+            await InstallAttachedAsync(
+                    skill, source, dest, cache, repo, commit, resolvedBranch, workspacePath, roots, log, cancellationToken)
                 .ConfigureAwait(false);
             return;
         }
@@ -109,9 +109,10 @@ public sealed class SkillInstaller
 
             foreach (var companion in skill.CompanionSkills)
             {
-                UninstallSkillCopy(companion, workspacePath, SkillRoots.Normalize(roots), log);
+                UninstallSkillCopy(companion, workspacePath, SkillRoots.Normalize(roots), log, skipUnmarked: true);
             }
 
+            RoutingSkillInstall.UninstallMarkedChildren(skill, "", workspacePath, roots, log);
             return;
         }
 
@@ -192,15 +193,47 @@ public sealed class SkillInstaller
     public static string ResolvePluginDestination(string workspacePath, SkillDefinition plugin) =>
         ProjectCopy.ResolveDestination(workspacePath, plugin);
 
+    private async Task InstallAttachedAsync(
+        SkillDefinition plugin,
+        string source,
+        string dest,
+        string cache,
+        GitHubRepoRef repo,
+        string commit,
+        string branch,
+        string workspacePath,
+        IReadOnlyList<string> roots,
+        Action<string>? log,
+        CancellationToken cancellationToken)
+    {
+        var config = MlsmoonSkillConfig.Read(source) ?? MlsmoonSkillConfig.Read(dest);
+        if (config is { IsRouting: true })
+        {
+            RoutingSkillInstall.Ensure(plugin, config, workspacePath, roots, CreateMarker(plugin, repo.HttpsUrl, commit, branch), log);
+            RoutingSkillInstall.UninstallMarkedChildren(plugin, config.Id, workspacePath, roots, log);
+            return;
+        }
+
+        await _skillCopy.InstallCompanionsAsync(
+                plugin, cache, repo, commit, branch, workspacePath, roots, log, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     private void UninstallSkillCopy(
         SkillDefinition skill,
         string workspacePath,
         IReadOnlyList<string> roots,
-        Action<string>? log)
+        Action<string>? log,
+        bool skipUnmarked = false)
     {
         foreach (var root in SkillRoots.Normalize(roots))
         {
-            var dest = WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
+            var dest = MlsmoonSkillConfig.ResolveInstallDirectory(workspacePath, root, skill.Id);
+            if (!Directory.Exists(dest))
+            {
+                dest = WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
+            }
+
             if (!Directory.Exists(dest))
             {
                 continue;
@@ -209,12 +242,18 @@ public sealed class SkillInstaller
             var markerPath = Path.Combine(dest, MarkerFileName);
             if (!File.Exists(markerPath))
             {
+                if (skipUnmarked)
+                {
+                    log?.Invoke($"{root}/skills/{Path.GetFileName(dest)} 没有本工具标记，未卸载。");
+                    continue;
+                }
+
                 throw new InvalidOperationException(
-                    $"{root}/skills/{skill.ResolvedInstallName} 没有本工具标记，未卸载以免误删本地 Skill。");
+                    $"{root}/skills/{Path.GetFileName(dest)} 没有本工具标记，未卸载以免误删本地 Skill。");
             }
 
-            var label = skill.IsCompanion ? "随附 Skill" : "Skill";
-            log?.Invoke($"卸载 {label} {skill.DisplayName} ← {root}/skills/{skill.ResolvedInstallName}");
+            var label = skill.IsRouting ? "路由 Skill" : skill.IsCompanion ? "随附 Skill" : "Skill";
+            log?.Invoke($"卸载 {label} {skill.DisplayName} ← {root}/skills/{Path.GetFileName(dest)}");
             Directory.Delete(dest, true);
             InstallSnapshot.Delete(_paths.SnapshotPath(workspacePath, skill.Id, root));
         }

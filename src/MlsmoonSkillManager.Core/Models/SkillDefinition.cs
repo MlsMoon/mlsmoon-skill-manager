@@ -47,11 +47,13 @@ public sealed class SkillDefinition
 
     public bool IsCompanion => Kind == ToolKind.Companion;
 
+    public bool IsRouting { get; set; }
+
     public string KindLabel => Kind switch
     {
         ToolKind.Package => "Package",
         ToolKind.Plugin => "Plugin",
-        ToolKind.Companion => "随附 Skill",
+        ToolKind.Companion => IsRouting ? "路由 Skill" : "随附 Skill",
         _ => "Skill"
     };
 

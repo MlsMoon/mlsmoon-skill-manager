@@ -35,9 +35,9 @@ public sealed class SkillCopyInstall
         var marker = SkillInstaller.CreateMarker(skill, repo.HttpsUrl, commit, branch);
         foreach (var root in targets)
         {
-            var dest = WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
-            var label = skill.IsCompanion ? "随附 Skill" : "Skill";
-            log?.Invoke($"安装 {label} {skill.DisplayName} → {root}/skills/{skill.ResolvedInstallName}");
+            var dest = MlsmoonSkillConfig.ResolveInstallDirectory(workspacePath, root, skill.Id);
+            var label = skill.IsRouting ? "路由 Skill" : skill.IsCompanion ? "随附 Skill" : "Skill";
+            log?.Invoke($"安装 {label} {skill.DisplayName} → {root}/skills/{Path.GetFileName(dest)}");
             if (WorkspaceRepo.CanAttach(skill))
             {
                 await _workspaceRepo.SyncSkillAsync(source, dest, repo.HttpsUrl, branch, log, cancellationToken)
@@ -49,6 +49,7 @@ public sealed class SkillCopyInstall
             }
 
             SkillInstaller.WriteMarker(dest, marker);
+            MlsmoonSkillConfig.WriteIdentity(dest, skill);
             WriteSnapshot(workspacePath, skill.Id, root, dest, commit, branch);
         }
     }

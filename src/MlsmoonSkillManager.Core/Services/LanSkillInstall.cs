@@ -18,6 +18,7 @@ public sealed class LanSkillInstall
     public async Task RunAsync(
         SkillDefinition skill,
         string workspacePath,
+        IReadOnlyList<string> roots,
         string? nasUser,
         string? branchName,
         Action<string>? log,
@@ -51,6 +52,12 @@ public sealed class LanSkillInstall
         var marker = SkillInstaller.CreateMarker(skill, url, commit, branch.Name);
         SkillInstaller.WriteMarker(dest, marker, ProjectCopy.MarkerFileName(skill));
         InstallSnapshot.Write(_paths.SnapshotPath(workspacePath, skill.Id, skill.ResolvedInstallPath), dest, commit, branch.Name);
+        var config = MlsmoonSkillConfig.Read(source) ?? MlsmoonSkillConfig.Read(dest);
+        if (config is { IsRouting: true })
+        {
+            RoutingSkillInstall.Ensure(skill, config, workspacePath, roots, marker, log);
+            RoutingSkillInstall.UninstallMarkedChildren(skill, config.Id, workspacePath, roots, log);
+        }
         if (branch.Manifest.Count > 0)
         {
             UnityWorkspace.MergeManifest(workspacePath, branch.Manifest);

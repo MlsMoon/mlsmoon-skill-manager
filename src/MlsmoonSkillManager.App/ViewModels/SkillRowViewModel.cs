@@ -286,9 +286,11 @@ public sealed class SkillRowViewModel : ObservableObject
             return $"{item.Root}: {extra}";
         });
         var summary = string.Join("  ·  ", parts);
-        InstallSummary = IsCompanion
-            ? $"随插件 Skill  ·  {summary}"
-            : summary;
+        InstallSummary = Definition.IsRouting
+            ? $"路由 Skill  ·  {summary}"
+            : IsCompanion
+                ? $"随插件 Skill  ·  {summary}"
+                : summary;
     }
 
     private static string SkillGitRecommend(SkillDefinition definition)

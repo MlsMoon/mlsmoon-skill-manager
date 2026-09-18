@@ -13,13 +13,7 @@
       "repo": "https://github.com/MlsMoon/your-public-plugin",
       "installName": "YourPublicPlugin",
       "installPath": "Assets/Plugins/YourPublicPlugin",
-      "engines": ["unity"],
-      "companionSkills": [
-        {
-          "id": "your-plugin-use",
-          "sourcePath": "Skills~/your-plugin-use"
-        }
-      ]
+      "engines": ["unity"]
     }
   ],
   "packages": [

@@ -16,7 +16,7 @@ GitHub 仓库：`MlsMoon/moon-game-dev-tool-manager`。界面产品名是 Moon G
 | 改什么 | 读 |
 |---|---|
 | 公开/覆盖清单、`engines`、新增条目 JSON | `.agent/skills/mlsmoon-catalog/SKILL.md` |
-| 安装路径、companion、标记、快照、复制 | `.agent/skills/mlsmoon-install/SKILL.md` |
+| 安装路径、`.mlsmoon`、路由 Skill、标记、快照、复制 | `.agent/skills/mlsmoon-install/SKILL.md` |
 | 工作区列表、卡片 Git 状态、冲突策略 | `.agent/skills/mlsmoon-workspace/SKILL.md` |
 | `gh`、局域网探测、NAS SSH 三种失败 | `.agent/skills/mlsmoon-access/SKILL.md` |
 | 主题、控件、设置对话框、单实例、动效 | `.agent/skills/mlsmoon-ui/SKILL.md` |

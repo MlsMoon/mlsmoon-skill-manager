@@ -9,7 +9,7 @@ public static class ProjectCopy
 
     public static readonly HashSet<string> SkipNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".git", ".github", ".vs", "bin", "obj", ".idea", "Skills~"
+        ".git", ".github", ".vs", "bin", "obj", ".idea"
     };
 
     public static string MarkerFileName(SkillDefinition skill) =>

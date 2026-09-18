@@ -21,7 +21,7 @@ Windows 桌面应用：把 **MlsMoon 用 Git 管起来的 Agent Skill、Unity Pl
 5. 只展示 `catalog/skills.json` 里登记过的条目（`id` ↔ 仓库）。卡片名称和简介从仓库 `SKILL.md` / README 读，并按 commit 缓存在本机。随附 Skill 不能当独立项安装；所属 Plugin / Package 装进当前工作区后才显示。
 6. 用本机 [GitHub CLI](https://cli.github.com/)（`gh`）检查仓库权限。
 7. 私有仓库如果当前账号看不到：仍然显示 **名字**，并提示 **当前无权限访问**，不能安装。
-8. 有权限时：Skill 复制到 `{工作区}/{根}/skills/{installName}/`；Plugin / Package 复制到自己的 `installPath`，并一并写入 `companionSkills`。
+8. 有权限时：Skill 同步到 `{工作区}/{根}/skills/{id}/`（身份看 `.mlsmoon/skill.json`，文件夹改名也能找到）；Plugin / Package 同步到自己的 `installPath`，并按插件仓 `.mlsmoon` 写入一条路由 Skill。
 9. 打开工作区后对照 Git：卡片写清本机落后远端、本机超前、已分叉还是已对齐，并列工作区改过的文件。冲突只提示，不自动覆盖。
 10. 右上角设置左侧是 Tab：外观、连接、更新、位置、关于、日志。GitHub / 局域网 / NAS 状态在「连接」里。NAS 网络可达但 SSH 要密码，和完全连不上会分开提示。
 11. 设置「更新」对照 [GitHub Releases](https://github.com/MlsMoon/moon-game-dev-tool-manager/releases) 的 Setup 包，可自动检查并下载安装。
@@ -62,7 +62,7 @@ Skill：
 }
 ```
 
-Plugin（随附 Skill 写在 `companionSkills`，不要放进 `skills`）：
+Plugin（宿主入口写在插件仓 `.mlsmoon/skill.json`，不要把 `Skills~` 放进 `skills`）：
 
 ```json
 {
@@ -70,16 +70,13 @@ Plugin（随附 Skill 写在 `companionSkills`，不要放进 `skills`）：
   "repo": "https://github.com/MlsMoon/SpineGpuSkinning",
   "installName": "SpineGpuSkinning",
   "installPath": "Assets/Plugins/SpineGpuSkinning",
-  "engines": ["unity"],
-  "companionSkills": [
-    { "id": "gpuspine-use-plugin", "sourcePath": "Skills~/gpuspine-use-plugin" }
-  ]
+  "engines": ["unity"]
 }
 ```
 
 `sourcePath` 为 `.` 时，仓库根目录就是要复制的内容。Skill 必须有 `SKILL.md`；Plugin / Package 不要求。
 
-[SpineGpuSkinning](https://github.com/MlsMoon/SpineGpuSkinning) 的本体走 Plugin。`gpuspine-use-plugin` / `gpuspine-develop-plugin` 随插件写入 `.agents/skills`（以及你勾选的其它 Skill 目标）；插件装进当前工作区后才会显示，并标成「随插件」。
+[SpineGpuSkinning](https://github.com/MlsMoon/SpineGpuSkinning) 的本体走 Plugin。安装后写入路由 Skill `spine-gpu-skinning-skill`（角标「路由」），指向插件内 `Skills~/`。插件装进当前工作区后才会显示这条路由 Skill。
 
 ## 开发
 

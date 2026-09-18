@@ -10,7 +10,7 @@ public static class SkillRowPresentation
         : definition.IsPlugin
             ? "Plugin"
             : definition.IsCompanion
-                ? "随插件"
+                ? definition.IsRouting ? "路由" : "随插件"
                 : definition.IsLan
                     ? "局域网"
                     : "Skill";
@@ -69,14 +69,27 @@ public static class SkillRowPresentation
         return text;
     }
 
-    public static string CompanionHint(SkillDefinition definition) =>
-        definition.IsProjectCopy && definition.CompanionSkills.Count > 0
-            ? "安装时会一并写入 Skill 目标：" + string.Join("、", definition.CompanionSkills.Select(item => item.DisplayName))
-            : "";
+    public static string CompanionHint(SkillDefinition definition)
+    {
+        if (!definition.IsProjectCopy || definition.CompanionSkills.Count == 0)
+        {
+            return "";
+        }
+
+        var routing = definition.CompanionSkills.Where(item => item.IsRouting).Select(item => item.DisplayName).ToList();
+        if (routing.Count > 0)
+        {
+            return "安装时会写入路由 Skill：" + string.Join("、", routing);
+        }
+
+        return "安装时会一并写入 Skill 目标：" + string.Join("、", definition.CompanionSkills.Select(item => item.DisplayName));
+    }
 
     public static string ParentHint(SkillDefinition definition) =>
         definition.IsCompanion && !string.IsNullOrWhiteSpace(definition.ParentPluginName)
-            ? $"属于 {definition.ParentPluginName}，装完后才会出现。"
+            ? definition.IsRouting
+                ? $"属于 {definition.ParentPluginName} 的路由 Skill，装完后才会出现。"
+                : $"属于 {definition.ParentPluginName}，装完后才会出现。"
             : "";
 
     public static IReadOnlyList<EngineTagViewModel> EngineTags(SkillDefinition definition)
