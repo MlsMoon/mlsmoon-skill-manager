@@ -9,6 +9,11 @@ public partial class MainWindow : Window
 {
     public MainWindow()
     {
+        if (Application.Current is App { IsUiTest: true })
+        {
+            NativeWindow.ParkForUiTest(this);
+        }
+
         InitializeComponent();
         var vm = new MainViewModel();
         DataContext = vm;

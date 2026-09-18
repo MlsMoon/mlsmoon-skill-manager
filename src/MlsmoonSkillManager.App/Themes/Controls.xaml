@@ -1419,7 +1419,7 @@
                             </Border.RenderTransform>
                             <DockPanel>
                                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                                    <Button x:Name="PART_Close"
+                                    <Button x:Name="PART_Close" AutomationProperties.AutomationId="DialogClose"
                                             DockPanel.Dock="Right"
                                             Style="{StaticResource CaptionButton}"
                                             Width="28"
@@ -1440,7 +1440,7 @@
                                             Style="{StaticResource GhostButton}"
                                             Content="{TemplateBinding SecondaryText}"
                                             Visibility="{Binding SecondaryText, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource VisibleIfPresent}}"/>
-                                    <Button x:Name="PART_Primary"
+                                    <Button x:Name="PART_Primary" AutomationProperties.AutomationId="DialogPrimary"
                                             Style="{StaticResource PrimaryButton}"
                                             Margin="0"
                                             Content="{TemplateBinding PrimaryText}"/>

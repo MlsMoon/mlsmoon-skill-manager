@@ -10,13 +10,17 @@ public sealed class AppPaths
         AppDirectory = appDirectory ?? AppContext.BaseDirectory.TrimEnd(
             Path.DirectorySeparatorChar,
             Path.AltDirectorySeparatorChar);
-        ConfigDirectory = configDirectory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MlsmoonSkillManager");
-        CacheDirectory = cacheDirectory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "MlsmoonSkillManager",
-            "cache");
+        ConfigDirectory = configDirectory
+            ?? ReadEnv("MLSMOON_CONFIG_DIR")
+            ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "MlsmoonSkillManager");
+        CacheDirectory = cacheDirectory
+            ?? ReadEnv("MLSMOON_CACHE_DIR")
+            ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "MlsmoonSkillManager",
+                "cache");
         SettingsPath = Path.Combine(ConfigDirectory, "settings.json");
         UserOverridePath = Path.Combine(ConfigDirectory, "skills.override.json");
         BundledCatalogPath = Path.Combine(AppDirectory, "catalog", "skills.json");
@@ -89,5 +93,11 @@ public sealed class AppPaths
         Directory.CreateDirectory(ConfigDirectory);
         Directory.CreateDirectory(CacheDirectory);
         Directory.CreateDirectory(SnapshotDirectory);
+    }
+
+    private static string? ReadEnv(string name)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

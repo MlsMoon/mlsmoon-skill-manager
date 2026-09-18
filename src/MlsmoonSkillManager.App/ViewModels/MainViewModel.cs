@@ -102,8 +102,9 @@ public sealed class MainViewModel : ObservableObject
         PullCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel pull && pull.CanPull);
         PushCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel push && push.CanPush);
         UninstallCommand = new RelayCommand(async p => await UninstallAsync(p as SkillRowViewModel).ConfigureAwait(true), CanMutate);
-        OpenInstallFolderCommand = new RelayCommand(p => OpenPath((p as SkillRowViewModel)?.InstallFolder), p =>
-            p is SkillRowViewModel row && !string.IsNullOrWhiteSpace(row.InstallFolder));
+        OpenInstallFolderCommand = new RelayCommand(
+            p => OpenPath((p as SkillRowViewModel)?.InstallFolder),
+            _ => HasOpenWorkspace);
         CloseConflictCommand = new RelayCommand(_ => IsConflictOpen = false);
         OpenConflictFolderCommand = new RelayCommand(_ => OpenPath(ConflictFolder), _ =>
             !string.IsNullOrWhiteSpace(ConflictFolder));
@@ -153,12 +154,12 @@ public sealed class MainViewModel : ObservableObject
         ReloadWorkspaceItems();
         if (!string.IsNullOrWhiteSpace(WorkspacePath) && Directory.Exists(WorkspacePath))
         {
-            ApplyWorkspace(WorkspacePath, persist: false, autoSelectDetected: false);
+            ApplyWorkspace(WorkspacePath, persist: false, autoSelectDetected: false, inspectGit: false);
         }
         else
         {
             ResetRootDefaults(Array.Empty<SkillRootInfo>(), CurrentSavedRoots(), autoSelectDetected: true);
-            RefreshInstallStatuses();
+            RefreshInstallStatuses(inspectGit: false);
         }
     }
 
@@ -331,9 +332,9 @@ public sealed class MainViewModel : ObservableObject
                 : "当前工作区路径不存在。现在只能浏览清单，不能安装、更新或卸载。";
     public string Version => typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
     public bool IsDev { get; } = Application.Current is App app && app.IsDev;
-    public string WindowTitle => IsDev
-        ? "Moon Game Dev Tool Manager — DEV"
-        : "Moon Game Dev Tool Manager";
+    public string WindowTitle => Application.Current is App { IsUiTest: true }
+        ? "Moon Game Dev Tool Manager — UI TEST"
+        : IsDev ? "Moon Game Dev Tool Manager — DEV" : "Moon Game Dev Tool Manager";
 
     public string WorkspacePath
     {
@@ -541,14 +542,14 @@ public sealed class MainViewModel : ObservableObject
         SaveSettings();
     }
 
-    public void ApplyWorkspace(string path, bool persist, bool autoSelectDetected)
+    public void ApplyWorkspace(string path, bool persist, bool autoSelectDetected, bool inspectGit = true)
     {
         var entry = WorkspaceBook.AddOrGet(_settings, path);
         WorkspacePath = entry.Path;
         if (!Directory.Exists(entry.Path))
         {
             ResetRootDefaults(Array.Empty<SkillRootInfo>(), entry.SelectedRoots, autoSelectDetected: false);
-            RefreshInstallStatuses();
+            RefreshInstallStatuses(inspectGit);
             ReloadWorkspaceItems();
             Log($"工作区不存在: {entry.Path}");
             if (persist)
@@ -561,7 +562,7 @@ public sealed class MainViewModel : ObservableObject
 
         var info = _scanner.Scan(entry.Path);
         ResetRootDefaults(info.Roots, entry.SelectedRoots, autoSelectDetected);
-        RefreshInstallStatuses();
+        RefreshInstallStatuses(inspectGit);
         ReloadWorkspaceItems();
         Log($"工作区: {info.Path}");
         foreach (var root in info.Roots)
@@ -749,7 +750,7 @@ public sealed class MainViewModel : ObservableObject
         OpenInstallFolderCommand?.RaiseCanExecuteChanged();
     }
 
-    private void RefreshInstallStatuses()
+    private void RefreshInstallStatuses(bool inspectGit = true)
     {
         var roots = SkillRoots.Normalize(SelectedRootNames()).ToList();
 
@@ -768,7 +769,10 @@ public sealed class MainViewModel : ObservableObject
         }
 
         ApplyFilter();
-        _ = _scan.InspectAllAsync();
+        if (inspectGit)
+        {
+            _ = _scan.InspectAllAsync();
+        }
     }
 
     private List<string> SelectedRootNames()
@@ -1146,37 +1150,8 @@ public sealed class MainViewModel : ObservableObject
         return text.ToString().TrimEnd();
     }
 
-    private void OpenPath(string? path, bool create = false)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return;
-        }
-
-        try
-        {
-            if (create && !Directory.Exists(path) && !File.Exists(path))
-            {
-                Directory.CreateDirectory(path);
-            }
-
-            if (!File.Exists(path) && !Directory.Exists(path))
-            {
-                Log($"找不到 {path}");
-                return;
-            }
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            Log($"无法打开 {path}: {ex.Message}");
-        }
-    }
+    private void OpenPath(string? path, bool create = false) =>
+        ShellFolders.Open(path, create, _paths.ConfigDirectory, Log);
 
     private void Log(string message)
     {

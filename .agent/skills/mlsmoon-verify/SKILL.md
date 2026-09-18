@@ -26,7 +26,7 @@ description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager�
 ## 原则
 
 - 先 `dotnet build`。类型、空引用、XAML 编不过的，到此为止。
-- 只验编译看不出来的：catalog 合并、companion 不当独立 Skill、安装路径/标记、引擎缺省、工作区列表、真 `gh`、窗口壳。
+- 只验编译看不出来的：catalog 合并、companion 不当独立 Skill、安装路径/标记、引擎缺省、工作区列表、真 `gh`、窗口壳和按钮流程。
 - **禁止 mock**：不要 `IProcessRunner` 假实现、不要假 `gh` 输出、不要为了绿而写 ScriptedRunner。
 - **禁止再往 `tests/` 堆 Fact**。已有无 mock 用例只当工具跑，不要加新的。
 - 用临时目录，测完删掉。不要碰用户真实工作区，除非用户点名。
@@ -40,7 +40,7 @@ description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager�
 仓库：D:/OtherProjects/mlsmoon-skill-manager
 参数：-t <flags>
 先读 .agent/skills/mlsmoon-verify/SKILL.md
-按参数跑 Scripts/verify.bat -t <flags>（UI 场景再按 skill 补 rundev）
+按参数跑 Scripts/verify.bat -t <flags>（-t -ui 由脚本自己用 Python 开窗口点按钮，子 agent 不必再 rundev）
 禁止 mock、禁止新增 xUnit
 用临时目录，测完删除
 只回报：参数、做了什么、通过/失败、证据（命令输出或截图路径）
@@ -60,7 +60,7 @@ description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager�
 | `-workspace` | 跑已有 `WorkspaceBook` | 列表迁入/去重/移除是否符合 `mlsmoon-workspace` |
 | `-sync` | 用真 `git` 建临时仓库：`ls-remote --heads`、两目录文件对照；断言冲突策略（本地改动 + 远端更新 = 不能自动更新） | 对照 `mlsmoon-workspace` 卡片状态 |
 | `-gh` | 对 catalog 里每个 `repo` 跑真 `gh repo view owner/name --json name,visibility,isPrivate` | 没装 gh 或未登录就标 skip，不要伪造 |
-| `-ui` | 只检查工程能编过 | `Scripts\rundev.bat`，看标题栏不是系统白条、右上角是设置齿轮、「当前工作区」在工作区列表上方、设置左侧是 Tab 且切 Tab 宽度不变、连接状态在设置「连接」不在状态栏、DEV 没有「更新」Tab 且齿轮无「新」、没开工作区不能安装；卡片/按钮悬停不放大 |
+| `-ui` | 只跑 `Scripts/ui_flow.py`：Python 自己编译、装 uiautomation、后台拉起 `--ui-test`。Invoke 设置→连接→位置→打开当前文件夹→完成→卡片「打开目录」，写 probe | 脚本失败就停。不要 rundev、不要 `SetActive`/`Click`/`SendKeys`。窗口 AutomationId 是 `MlsmoonUiTest`，不激活、不进任务栏、不抢焦点 |
 | `-release` | `VERSION` 是 `X.Y.Z`；`CHANGELOG.md` 有对应 `## [VERSION]`；`release.yml` 要求 tag 在 `origin/release` 上，用 `release_notes.ps1` 当正文，并上传 `MlsmoonSkillManager-Setup-*.exe` | 没让发版就不要改 `VERSION`、不要打 tag。对照 `mlsmoon-release` |
 | `-size` | 跑 `Scripts\file_budget.ps1`：默认 300 行，例外/债务见 `mlsmoon-self-iterate/file-budget.json` | 新超标必须拆。债务文件只准缩短。不要把 ViewModel 改成例外 |
 | `-all` | build + catalog + install + workspace + sync + release + size；gh/ui 不自动跑 | 需要再显式加 `-gh` / `-ui` |

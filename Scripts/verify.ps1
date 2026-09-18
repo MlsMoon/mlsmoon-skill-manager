@@ -276,11 +276,11 @@ if ($tags -contains "size") {
 }
 
 if ($tags -contains "ui") {
-    Write-Host "==> -t -ui"
-    Write-Host "script only confirms build; sub-agent must rundev and look at the window."
-    if (-not ($tags -contains "build")) {
-        dotnet build (Join-Path $root "src\MlsmoonSkillManager.App\MlsmoonSkillManager.App.csproj") --nologo
-        if ($LASTEXITCODE -ne 0) { throw "ui build failed" }
+    Invoke-Step "ui" {
+        $python = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $python) { throw "python is required for -t -ui" }
+        python (Join-Path $root "Scripts\ui_flow.py")
+        if ($LASTEXITCODE -ne 0) { throw "ui_flow.py failed" }
     }
 }
 

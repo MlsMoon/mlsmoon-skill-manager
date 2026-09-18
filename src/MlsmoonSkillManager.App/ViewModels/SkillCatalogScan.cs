@@ -1,3 +1,4 @@
+using System.Windows;
 using MlsmoonSkillManager.Core.Models;
 using MlsmoonSkillManager.Core.Services;
 
@@ -53,6 +54,11 @@ public sealed class SkillCatalogScan
 
     public async Task RefreshAccessAsync()
     {
+        if (SkipLiveScan())
+        {
+            return;
+        }
+
         var rows = _rows.ToList();
         var tops = rows.Where(item => !item.IsCompanion).ToList();
         var inspect = _hasWorkspace() ? rows.Count : 0;
@@ -108,6 +114,11 @@ public sealed class SkillCatalogScan
 
     public async Task InspectAllAsync()
     {
+        if (SkipLiveScan())
+        {
+            return;
+        }
+
         _gitCts?.Cancel();
         _gitCts = new CancellationTokenSource();
         var ct = _gitCts.Token;
@@ -127,7 +138,11 @@ public sealed class SkillCatalogScan
             row.MarkGitChecking();
         }
 
-        _meter ??= new ScanMeter(_rows, _rows.Count);
+        if (_meter is null || _meter.Done >= _meter.Total)
+        {
+            _meter = new ScanMeter(_rows, _rows.Count);
+        }
+
         _meter.Show(null, "正在对照 Git…");
         try
         {
@@ -159,6 +174,22 @@ public sealed class SkillCatalogScan
         {
             row.SetScan("正在对照 Git…", 100);
         }
+    }
+
+    private bool SkipLiveScan()
+    {
+        if (Application.Current is not App { IsUiTest: true })
+        {
+            return false;
+        }
+
+        foreach (var row in _rows)
+        {
+            row.Access = new RepoAccess { State = AccessState.Accessible, Message = "ui-test" };
+            row.ApplyGit(SkillGitStatus.Empty);
+        }
+
+        return true;
     }
 
     private async Task CheckAccessAsync(SkillRowViewModel row, GhAccountStatus account)

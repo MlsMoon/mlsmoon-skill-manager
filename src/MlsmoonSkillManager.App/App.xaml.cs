@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using MlsmoonSkillManager.App.Theming;
 using MlsmoonSkillManager.Core.Services;
@@ -10,6 +11,8 @@ public partial class App : Application
 
     public bool IsDev => _instance?.IsDev == true;
 
+    public bool IsUiTest { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
 #if DEBUG
@@ -18,7 +21,8 @@ public partial class App : Application
         const bool debugBuild = false;
 #endif
         var isDev = AppChannel.IsDev(e.Args, debugBuild);
-        _instance = new SingleInstance(isDev);
+        IsUiTest = AppChannel.IsUiTest(e.Args);
+        _instance = new SingleInstance(isDev, IsUiTest);
         if (!_instance.TryAcquire())
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -33,7 +37,18 @@ public partial class App : Application
         var window = new MainWindow();
         MainWindow = window;
         ShutdownMode = ShutdownMode.OnMainWindowClose;
+        if (IsUiTest)
+        {
+            NativeWindow.ParkForUiTest(window);
+        }
+
         window.Show();
+        if (IsUiTest)
+        {
+            var ready = Path.Combine(new AppPaths().ConfigDirectory, "ui-ready.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(ready)!);
+            File.WriteAllText(ready, NativeWindow.UiTestId);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

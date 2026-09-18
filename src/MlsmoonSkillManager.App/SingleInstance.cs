@@ -12,20 +12,22 @@ public sealed class SingleInstance : IDisposable
     private bool _owned;
     private volatile bool _stop;
 
-    public SingleInstance(bool isDev)
+    public SingleInstance(bool isDev, bool uiTest = false)
     {
         IsDev = isDev;
-        Channel = AppChannel.Name(isDev);
+        UiTest = uiTest;
+        Channel = AppChannel.Name(isDev, uiTest);
     }
 
     public bool IsDev { get; }
+    public bool UiTest { get; }
     public string Channel { get; }
 
     public bool TryAcquire()
     {
-        _mutex = new Mutex(initiallyOwned: true, AppChannel.MutexName(IsDev), out var createdNew);
+        _mutex = new Mutex(initiallyOwned: true, AppChannel.MutexName(IsDev, UiTest), out var createdNew);
         _owned = createdNew;
-        _activate = new EventWaitHandle(false, EventResetMode.AutoReset, AppChannel.ActivateEventName(IsDev));
+        _activate = new EventWaitHandle(false, EventResetMode.AutoReset, AppChannel.ActivateEventName(IsDev, UiTest));
         if (!createdNew)
         {
             _activate.Set();
@@ -85,6 +87,11 @@ public sealed class SingleInstance : IDisposable
             if (_stop || app is null)
             {
                 return;
+            }
+
+            if (UiTest)
+            {
+                continue;
             }
 
             app.Dispatcher.BeginInvoke(ActivateMainWindow);

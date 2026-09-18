@@ -47,6 +47,7 @@
                         <Button Style="{StaticResource CaptionButton}"
                                 ToolTip="设置"
                                 AutomationProperties.Name="设置"
+                                AutomationProperties.AutomationId="OpenSettings"
                                 Command="{Binding OpenSettingsCommand}">
                             <TextBlock FontFamily="{DynamicResource FluentIconFont}"
                                        FontSize="12"
@@ -202,6 +203,8 @@
                                                 <Button Style="{StaticResource GitDirButton}" Content="{Binding PullLabel}" IsEnabled="{Binding CanPull}" Command="{Binding DataContext.PullCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource GitDirButton}" Content="{Binding PushLabel}" IsEnabled="{Binding CanPush}" Command="{Binding DataContext.PushCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource GhostButton}" Content="打开目录"
+                                                        AutomationProperties.Name="打开目录"
+                                                        AutomationProperties.AutomationId="{Binding Name, StringFormat=OpenInstallFolder-{0}}"
                                                         Visibility="{Binding ShowOpenFolder, Converter={StaticResource VisibleIfTrue}}"
                                                         Command="{Binding DataContext.OpenInstallFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
@@ -284,7 +287,7 @@
                 <ItemsControl ItemsSource="{Binding SettingsTabs}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:SettingsTabViewModel}">
-                            <Button Content="{Binding Label}"
+                            <Button Content="{Binding Label}" AutomationProperties.AutomationId="{Binding Id, StringFormat=SettingsTab-{0}}"
                                     Command="{Binding DataContext.SelectSettingsTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}">
                                 <Button.Style>
@@ -449,7 +452,7 @@
                             </ui:FieldRow>
                             <ui:FieldRow Header="工作区" LabelWidth="80" Margin="0">
                                 <Button Style="{StaticResource GhostButton}"
-                                        Content="打开当前文件夹"
+                                        Content="打开当前文件夹" AutomationProperties.AutomationId="OpenWorkspaceFolder"
                                         Command="{Binding OpenWorkspaceFolderCommand}"
                                         Margin="0"/>
                             </ui:FieldRow>

@@ -60,4 +60,4 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 - 切设置 Tab 时改对话框宽度
 - 继续往 `MainViewModel.cs` / `MainWindow.xaml` 堆职责；超行先拆再改
 
-改完跑 `-t -ui`：`Scripts\rundev.bat`，看标题栏不是系统白条、右上角是设置齿轮、「当前工作区」在工作区列表上方、设置左侧是 Tab 且切 Tab 宽度不变、连接状态在设置「连接」不在状态栏、DEV 设置里没有「更新」且齿轮无「新」、没开工作区不能安装；卡片/按钮悬停不放大。
+改完跑 `-t -ui`。`Scripts/ui_flow.py` 是整段流程：自己编译、后台开 `--ui-test`（`MlsmoonUiTest`，不激活、不进任务栏、屏外且透明），只用 InvokePattern 点设置 / 连接 / 位置 / 打开目录，写 probe。不要 `SetActive`、不要 `Click`、不要 `SendKeys`，以免抢用户焦点。`--ui-test` 跳过 gh/git 扫描。启动进度条只走一轮。卡片按钮的 `Command` 必须带 `CommandParameter`，且 `CanExecute(null)` 不能把按钮永远灰掉。
