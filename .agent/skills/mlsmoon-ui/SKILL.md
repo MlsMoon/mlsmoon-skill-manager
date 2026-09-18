@@ -28,6 +28,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 - 窗口用 `WindowStyle=None` + `WindowChrome` + 自定义 `TitleBar`，不要系统白底标题栏；深色用 DWM immersive dark mode
 - 壳层：标题栏 → 当前工作区命令条（在工作区列表上方通栏）→ 左侧工作区 | 右侧卡片 → 底部状态栏（只留末行日志）
+- 卡片列表上方是 `CatalogFilterBar`：搜索 + 分段筛选（已安装 / 未安装、Skill / Plugin / Package、Unity / Godot / 全引擎）。多组可叠加。随附 Skill 仍要父级已安装才出现。筛选逻辑在 `CatalogFilter`，不要再往 `MainViewModel` 里堆
 - 标题栏右侧：版本、`DEV` 角标、设置齿轮。有应用更新时齿轮上标「新」
 - DEV 角标用 `Badge Appearance="Dev"`（`DevBadgeBrush` / `DevBadgeTextBrush`）
 
@@ -60,4 +61,4 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 - 切设置 Tab 时改对话框宽度
 - 继续往 `MainViewModel.cs` / `MainWindow.xaml` 堆职责；超行先拆再改
 
-改完跑 `-t -ui`。`Scripts/ui_flow.py` 是整段流程：自己编译、后台开 `--ui-test`（`MlsmoonUiTest`，不激活、不进任务栏、屏外且透明），只用 InvokePattern 点设置 / 连接 / 位置 / 打开目录，写 probe。不要 `SetActive`、不要 `Click`、不要 `SendKeys`，以免抢用户焦点。`--ui-test` 跳过 gh/git 扫描。启动进度条只走一轮。卡片按钮的 `Command` 必须带 `CommandParameter`，且 `CanExecute(null)` 不能把按钮永远灰掉。
+改完跑 `-t -ui`。`Scripts/ui_flow.py` 是整段流程：自己编译、后台开 `--ui-test`（`MlsmoonUiTest`，不激活、不进任务栏、屏外且透明），只用 InvokePattern 点设置 / 连接 / 位置 / 打开目录 / 筛选芯片，写 probe。不要 `SetActive`、不要 `Click`、不要 `SendKeys`，以免抢用户焦点。`--ui-test` 跳过 gh/git 扫描。启动进度条只走一轮。卡片按钮的 `Command` 必须带 `CommandParameter`，且 `CanExecute(null)` 不能把按钮永远灰掉。

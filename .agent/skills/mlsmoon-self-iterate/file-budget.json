@@ -23,12 +23,12 @@
   "debt": [
     {
       "path": "src/MlsmoonSkillManager.App/ViewModels/MainViewModel.cs",
-      "ceiling": 1161,
+      "ceiling": 1123,
       "split": "按 workspace / install / access / settings / update 拆协作对象"
     },
     {
       "path": "src/MlsmoonSkillManager.App/MainWindow.xaml",
-      "ceiling": 535,
+      "ceiling": 533,
       "split": "工作区栏、卡片列表、设置内容拆到 Controls 或独立 XAML"
     },
     {

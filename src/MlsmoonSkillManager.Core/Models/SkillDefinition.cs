@@ -61,6 +61,9 @@ public sealed class SkillDefinition
     public string ResolvedSourcePath =>
         string.IsNullOrWhiteSpace(SourcePath) ? "." : SourcePath;
 
+    public bool IsRepoRoot =>
+        !IsProjectCopy && ResolvedSourcePath is "." or "./";
+
     public string ResolvedInstallPath
     {
         get

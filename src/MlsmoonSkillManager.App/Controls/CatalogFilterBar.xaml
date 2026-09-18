@@ -1,0 +1,103 @@
+<UserControl x:Class="MlsmoonSkillManager.App.Controls.CatalogFilterBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MlsmoonSkillManager.App.ViewModels">
+    <StackPanel Margin="0,0,0,8">
+        <TextBox Style="{StaticResource SearchBox}"
+                 AutomationProperties.AutomationId="CatalogFilterQuery"
+                 Tag="筛选名称、描述或类型"
+                 Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"/>
+        <WrapPanel Margin="0,8,0,0">
+            <Border Style="{StaticResource Segmented}" Margin="0,0,8,6">
+                <ItemsControl ItemsSource="{Binding Installs}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:FilterChip}">
+                            <Button Content="{Binding Label}"
+                                    AutomationProperties.AutomationId="{Binding AutomationId}"
+                                    Command="{Binding DataContext.SelectChipCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ThemeButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ThemeSelectedBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+            <Border Style="{StaticResource Segmented}" Margin="0,0,8,6">
+                <ItemsControl ItemsSource="{Binding Kinds}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:FilterChip}">
+                            <Button Content="{Binding Label}"
+                                    AutomationProperties.AutomationId="{Binding AutomationId}"
+                                    Command="{Binding DataContext.SelectChipCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ThemeButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ThemeSelectedBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+            <Border Style="{StaticResource Segmented}" Margin="0,0,0,6">
+                <ItemsControl ItemsSource="{Binding Engines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:FilterChip}">
+                            <Button Content="{Binding Label}"
+                                    AutomationProperties.AutomationId="{Binding AutomationId}"
+                                    Command="{Binding DataContext.SelectChipCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ThemeButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ThemeSelectedBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </WrapPanel>
+        <TextBlock Style="{StaticResource Caption}"
+                   AutomationProperties.AutomationId="CatalogFilterSummary"
+                   Text="{Binding Summary}"/>
+    </StackPanel>
+</UserControl>

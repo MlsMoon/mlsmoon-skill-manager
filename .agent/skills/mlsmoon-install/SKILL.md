@@ -5,7 +5,7 @@ description: 维护 Skill / Plugin / Package 安装目标、companionSkills、�
 
 # 安装
 
-代码：`SkillInstaller`、`SkillCopy`、`LanSkillInstall`、`InstallSnapshot`、`UnityWorkspace`、`AppPaths`。界面触发在 `MainViewModel` 的安装 / 更新 / 卸载。
+代码：`SkillInstaller`、`SkillCopy` / `SkillCopyInstall`、`WorkspaceRepo`、`LanSkillInstall`、`InstallSnapshot`、`UnityWorkspace`、`AppPaths`。界面触发在 `MainViewModel` 的安装 / 更新 / 卸载。
 
 Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Package 安装逻辑相同，只是默认目录和标记不同。不要扫描工作区里其它条目，也不要改无标记文件的目录。
 
@@ -34,16 +34,17 @@ Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Packa
 - Plugin 标记：`.mlsmoon-plugin.json`（含 `commit` / `branch`）
 - Package 标记：`.mlsmoon-package.json`。原先误标成 Plugin 的 Package 目录，卸载/扫描仍认 `.mlsmoon-plugin.json`
 - 没有标记的目录禁止删除，避免误删用户自己放的文件
-- 目标目录已有 `.git` 时禁止整目录覆盖（安装 / Pull 都拒绝）。这是用户自己的工作副本，文件齐了就不必动；要更新请在该目录里自行 pull
+- Skill 且 `sourcePath` 为仓库根：安装目录留下 `.git`。已有目录走 `WorkspaceRepo` 快进，禁止 `Directory.Delete` 整份重拷。没有 `.git` 就 init 并接上远端
 - 卡片是否「已安装」只看目录在不在。是否「可更新」看工作区文件树是否已等于远端 tip，见 `mlsmoon-workspace`。不要写成「本地存在但非本工具安装」
-- 安装快照（用于列出工作区改动）在 `%AppData%\MlsmoonSkillManager\snapshots\`，不是工作区里的 `.git`。文件已与远端对齐时只写这份快照，不要补写工作区标记
-- 管理器自己装的副本不含 `.git`：GitHub 走 `gh` 克隆到缓存再复制；局域网走 `git archive --remote` 到缓存再复制
+- 安装快照（用于列出工作区改动）在 `%AppData%\MlsmoonSkillManager\snapshots\`。文件已与远端对齐时只写这份快照，不要为对齐去补写工作区标记
+- Plugin / Package 仍从缓存拷文件、跳过 `.git`：GitHub 走 `gh` 克隆到缓存再复制；局域网走 `git archive --remote` 到缓存再复制
 
 局域网 Package / Plugin 装完后按所选分支的 `manifest` 合并工作区 `Packages/manifest.json`。卸载时去掉对应 `file:` 前缀。
 
 ## 复制规则
 
-- 跳过：`.git`、`.github`、`.vs`、`bin`、`obj`、`.idea`
+- Plugin / Package 跳过：`.git`、`.github`、`.vs`、`bin`、`obj`、`.idea`
+- Skill 仓库根拷贝时留下 `.git`，仍跳过 `.github`、`bin`、`obj`、`.idea`
 - Plugin / Package 额外跳过 `Skills~`
 - Skill 源目录必须有 `SKILL.md`（Plugin / Package 不要求）
 - `sourcePath` 相对缓存根；`.` 表示仓库根
@@ -55,7 +56,7 @@ Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Packa
 
 - 把 companion 当成独立 catalog Skill
 - 卸没有标记的目录
-- 覆盖带 `.git` 的目录，或在工作区副本里留 `.git` / 建远端跟踪
+- 整目录覆盖带 `.git` 的 Skill 安装目录
 - 扫描、改写清单以外的本地 skill / plugin
 
 清单字段见 `mlsmoon-catalog`。卡片 Git 状态与冲突见 `mlsmoon-workspace`。改完跑 `-t -install`。

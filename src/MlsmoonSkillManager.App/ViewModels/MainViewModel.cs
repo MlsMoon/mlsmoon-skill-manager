@@ -41,7 +41,6 @@ public sealed class MainViewModel : ObservableObject
     private AccessState _igpState;
     private AccessState _nasState;
     private string _logText = "";
-    private string _filter = "";
     private bool _busy;
     private bool _isLogOpen;
     private bool _isSettingsOpen;
@@ -93,6 +92,7 @@ public sealed class MainViewModel : ObservableObject
             AllSkills.Add(row);
         }
 
+        CatalogFilter.Changed += ApplyFilter;
         ApplyFilter();
         BrowseCommand = new RelayCommand(_ => AddWorkspace());
         SelectWorkspaceCommand = new RelayCommand(p => SelectWorkspace(p as WorkspaceItemViewModel));
@@ -169,6 +169,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<WorkspaceItemViewModel> Workspaces { get; } = [];
     public ObservableCollection<SkillRowViewModel> AllSkills { get; } = [];
     public ObservableCollection<SkillRowViewModel> VisibleSkills { get; } = [];
+    public CatalogFilter CatalogFilter { get; } = new();
     public RelayCommand BrowseCommand { get; }
     public RelayCommand SelectWorkspaceCommand { get; }
     public RelayCommand RemoveWorkspaceCommand { get; }
@@ -419,18 +420,6 @@ public sealed class MainViewModel : ObservableObject
             {
                 _settings.ShowRepoLinks = value;
                 SaveSettings();
-            }
-        }
-    }
-
-    public string Filter
-    {
-        get => _filter;
-        set
-        {
-            if (SetProperty(ref _filter, value))
-            {
-                ApplyFilter();
             }
         }
     }
@@ -846,34 +835,7 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(HasWorkspaces));
     }
 
-    private void ApplyFilter()
-    {
-        VisibleSkills.Clear();
-        foreach (var row in AllSkills)
-        {
-            if (row.IsCompanion && !IsParentPluginInstalled(row))
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(Filter)
-                || row.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase)
-                || row.Description.Contains(Filter, StringComparison.OrdinalIgnoreCase)
-                || row.KindLabel.Contains(Filter, StringComparison.OrdinalIgnoreCase)
-                || row.EngineLabel.Contains(Filter, StringComparison.OrdinalIgnoreCase)
-                || row.Definition.ParentPluginName.Contains(Filter, StringComparison.OrdinalIgnoreCase))
-            {
-                VisibleSkills.Add(row);
-            }
-        }
-    }
-
-    private bool IsParentPluginInstalled(SkillRowViewModel row)
-    {
-        var parent = AllSkills.FirstOrDefault(item =>
-            item.Definition.Id.Equals(row.Definition.ParentPluginId, StringComparison.OrdinalIgnoreCase));
-        return parent?.Installs.Any(item => item.Installed) == true;
-    }
+    private void ApplyFilter() => CatalogFilter.Fill(AllSkills, VisibleSkills);
 
     public void SelectSettingsTab(SettingsTabViewModel? tab)
     {

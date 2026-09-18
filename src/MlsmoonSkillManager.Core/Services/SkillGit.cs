@@ -7,6 +7,7 @@ public sealed class SkillGit
     private readonly SkillGitRemote _tips;
     private readonly GitCompare _compare;
     private readonly WorkspaceGit _workspaceGit;
+    private readonly WorkspaceRepo _workspaceRepo;
     private readonly InstallTreeAlign _align;
 
     public SkillGit(AppPaths paths, GhCli gh, GitRemote git, IProcessRunner? runner = null)
@@ -15,6 +16,7 @@ public sealed class SkillGit
         _tips = new SkillGitRemote(paths, gh, git);
         _compare = new GitCompare(process);
         _workspaceGit = new WorkspaceGit(process);
+        _workspaceRepo = new WorkspaceRepo(process);
         _align = new InstallTreeAlign(paths, git, _workspaceGit);
     }
 
@@ -76,16 +78,6 @@ public sealed class SkillGit
         var first = copies.FirstOrDefault() ?? installs.FirstOrDefault();
         var installedBranch = first?.Branch ?? "";
         var installedCommit = first?.Commit ?? "";
-        if (first is not null && first.HasGit)
-        {
-            installedCommit = await FillGitValueAsync(
-                    installedCommit, () => _workspaceGit.ReadHeadCommitAsync(first.Path, cancellationToken))
-                .ConfigureAwait(false);
-            installedBranch = await FillGitValueAsync(
-                    installedBranch, () => _workspaceGit.ReadCurrentBranchAsync(first.Path, cancellationToken))
-                .ConfigureAwait(false);
-        }
-
         var branches = await _tips.ListBranchesAsync(skill, nasUser, canReachRemote, cancellationToken)
             .ConfigureAwait(false);
         var target = ResolveTarget(skill, editorVersion, selectedBranch, installedBranch, ref branches);
@@ -93,6 +85,21 @@ public sealed class SkillGit
         if (canReachRemote && !string.IsNullOrWhiteSpace(target))
         {
             remoteCommit = await _tips.RemoteCommitAsync(skill, target, nasUser, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (installed && canReachRemote)
+        {
+            await PrepareReposAsync(skill, copies, target, nasUser, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (first is not null && WorkspaceGit.HasRepo(first.Path))
+        {
+            installedCommit = await FillGitValueAsync(
+                    "", () => _workspaceGit.ReadHeadCommitAsync(first.Path, cancellationToken))
+                .ConfigureAwait(false);
+            installedBranch = await FillGitValueAsync(
+                    "", () => _workspaceGit.ReadCurrentBranchAsync(first.Path, cancellationToken))
                 .ConfigureAwait(false);
         }
 
@@ -124,10 +131,6 @@ public sealed class SkillGit
                             && !installedBranch.Equals(target, StringComparison.OrdinalIgnoreCase);
         var forbidden = IsForbiddenBranch(skill, editorVersion, target);
         var state = SkillGitStatus.Decide(installed, hasLocal, compare.Relation, branchDiffers);
-        if (align.HasUserGit && state is SkillGitState.Behind or SkillGitState.BranchSwitch)
-        {
-            state = SkillGitState.Unclear;
-        }
 
         return new SkillGitStatus
         {
@@ -141,8 +144,16 @@ public sealed class SkillGit
             Changes = align.SnapshotChanges,
             Forbidden = forbidden,
             Warning = forbidden ? "Unity 6 不能使用 master 上的 URP 14，请改选 urp-17.5。" : "",
-            Message = Describe(state, compare, target, installedBranch, installedCommit, remoteCommit,
-                align, canReachRemote)
+            Message = SkillGitStatus.Describe(
+                state,
+                compare,
+                target,
+                installedBranch,
+                installedCommit,
+                remoteCommit,
+                align.SnapshotChanges.Count,
+                canReachRemote,
+                remoteCommit.Length > 0)
         };
     }
 
@@ -164,13 +175,44 @@ public sealed class SkillGit
             return CommitCompare.Same;
         }
 
-        if (string.IsNullOrWhiteSpace(installedCommit) && align.ComparedAll && !align.HasUserGit)
+        if (string.IsNullOrWhiteSpace(installedCommit) && align.ComparedAll)
         {
             return CommitCompare.Behind();
         }
 
         return await _compare.CompareAsync(skill, installedCommit, remoteCommit, cache, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private async Task PrepareReposAsync(
+        SkillDefinition skill,
+        IReadOnlyList<RootInstallStatus> copies,
+        string branch,
+        string? nasUser,
+        CancellationToken cancellationToken)
+    {
+        if (!WorkspaceRepo.CanAttach(skill) || string.IsNullOrWhiteSpace(branch))
+        {
+            return;
+        }
+
+        var origin = WorkspaceRepo.OriginUrl(skill, nasUser);
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return;
+        }
+
+        foreach (var copy in copies)
+        {
+            try
+            {
+                await _workspaceRepo.EnsureAttachedAsync(copy.Path, origin, branch, null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
     }
 
     private static async Task<string> FillGitValueAsync(string current, Func<Task<string>> read)
@@ -205,32 +247,5 @@ public sealed class SkillGit
         }
 
         return target;
-    }
-
-    private static string Describe(
-        SkillGitState state,
-        CommitCompare compare,
-        string target,
-        string installedBranch,
-        string installedCommit,
-        string remoteCommit,
-        AlignReport align,
-        bool canReachRemote)
-    {
-        if (state == SkillGitState.Unclear && align.HasUserGit && !align.MatchesRemote)
-        {
-            return "这是带 .git 的工作副本，本工具不会覆盖。请在安装目录里自行更新。";
-        }
-
-        return SkillGitStatus.Describe(
-            state,
-            compare,
-            target,
-            installedBranch,
-            installedCommit,
-            remoteCommit,
-            align.SnapshotChanges.Count,
-            canReachRemote,
-            remoteCommit.Length > 0);
     }
 }

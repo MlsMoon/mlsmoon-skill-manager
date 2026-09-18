@@ -140,21 +140,19 @@ if ($tags -contains "sync") {
         Assert-True ((Get-SkillGitState $true $true "same" $true) -eq "conflict") "dirty + branch switch must conflict"
         Assert-True ((Get-SkillGitState $true $false "same" $true) -eq "switch") "clean branch switch"
 
-        function Get-InspectCard([bool]$Installed, [bool]$TreeMatch, [bool]$TreeCompared, [bool]$UserGit, [string]$LocalSha, [string]$Relation, [bool]$Local) {
+        function Get-InspectCard([bool]$Installed, [bool]$TreeMatch, [bool]$TreeCompared, [string]$LocalSha, [string]$Relation, [bool]$Local) {
             if (-not $Installed) { return "notinstalled" }
             if ($TreeMatch) { return "current" }
             if ([string]::IsNullOrWhiteSpace($LocalSha)) {
-                $Relation = $(if ($TreeCompared -and -not $UserGit) { "behind" } else { "unknown" })
+                $Relation = $(if ($TreeCompared) { "behind" } else { "unknown" })
             }
-            $state = Get-SkillGitState $Installed $Local $Relation $false
-            if ($UserGit -and $state -in @("behind", "switch")) { return "unclear" }
-            return $state
+            return Get-SkillGitState $Installed $Local $Relation $false
         }
 
-        Assert-True ((Get-InspectCard $true $true $true $true "" "behind" $false) -eq "current") "aligned tree is current even with empty sha"
-        Assert-True ((Get-InspectCard $true $false $false $false "" "behind" $false) -eq "unclear") "empty sha without tree compare is not behind"
-        Assert-True ((Get-InspectCard $true $false $true $false "" "unknown" $false) -eq "behind") "stale folder without git can pull"
-        Assert-True ((Get-InspectCard $true $false $true $true "abc" "behind" $false) -eq "unclear") "user git copy is not fast-forwarded"
+        Assert-True ((Get-InspectCard $true $true $true "" "behind" $false) -eq "current") "aligned tree is current even with empty sha"
+        Assert-True ((Get-InspectCard $true $false $false "" "behind" $false) -eq "unclear") "empty sha without tree compare is not behind"
+        Assert-True ((Get-InspectCard $true $false $true "" "unknown" $false) -eq "behind") "stale folder after compare can pull"
+        Assert-True ((Get-InspectCard $true $false $true "abc" "behind" $false) -eq "behind") "skill repo with .git can fast-forward when behind"
 
         $git = Get-Command git -ErrorAction SilentlyContinue
         if (-not $git) {
@@ -206,7 +204,20 @@ if ($tags -contains "sync") {
             git -C $align diff --quiet $tip
             Assert-True ($LASTEXITCODE -eq 0) "working tree can match remote tip while HEAD is old"
             Assert-True (((git -C $align rev-parse HEAD).Trim()) -eq $old) "HEAD should stay on old commit"
-            Write-Host "sync ok: conflict policy + git ls-remote/diff + tree align"
+
+            $attach = Join-Path $repo "attach"
+            New-Item -ItemType Directory -Path $attach | Out-Null
+            Copy-Item (Join-Path $left "SKILL.md") (Join-Path $attach "SKILL.md")
+            git -C $attach init -q
+            git -C $attach remote add origin $left
+            git -C $attach fetch -q origin master:refs/remotes/origin/master
+            if ($LASTEXITCODE -ne 0) { throw "attach fetch failed" }
+            git -C $attach add -A
+            git -C $attach diff --cached --quiet origin/master
+            Assert-True ($LASTEXITCODE -eq 0) "copied files without .git can match origin after fetch"
+            git -C $attach checkout -q -B master origin/master
+            Assert-True (((git -C $attach rev-parse HEAD).Trim()) -eq ((git -C $left rev-parse HEAD).Trim())) "attach checkout aligns HEAD"
+            Write-Host "sync ok: conflict policy + git ls-remote/diff + tree align + attach"
         }
         finally {
             if (Test-Path $repo) {

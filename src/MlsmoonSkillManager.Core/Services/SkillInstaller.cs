@@ -12,12 +12,15 @@ public sealed class SkillInstaller
     private readonly AppPaths _paths;
     private readonly GhCli _gh;
     private readonly GitRemote _git;
+    private readonly SkillCopyInstall _skillCopy;
 
     public SkillInstaller(AppPaths paths, GhCli gh, IProcessRunner? runner = null)
     {
         _paths = paths;
         _gh = gh;
-        _git = new GitRemote(runner ?? new ProcessRunner());
+        var process = runner ?? new ProcessRunner();
+        _git = new GitRemote(process);
+        _skillCopy = new SkillCopyInstall(paths, gh, new WorkspaceRepo(process));
     }
 
     public async Task InstallAsync(
@@ -65,12 +68,15 @@ public sealed class SkillInstaller
             SkillCopy.Replace(source, dest, ProjectCopy.SkipNames);
             WriteMarker(dest, marker, ProjectCopy.MarkerFileName(skill));
             WriteSnapshot(workspacePath, skill.Id, skill.ResolvedInstallPath, dest, commit, resolvedBranch);
-            await InstallCompanionsAsync(skill, cache, repo, commit, resolvedBranch, workspacePath, roots, log, cancellationToken)
+            await _skillCopy.InstallCompanionsAsync(
+                    skill, cache, repo, commit, resolvedBranch, workspacePath, roots, log, cancellationToken)
                 .ConfigureAwait(false);
             return;
         }
 
-        InstallSkillCopy(skill, source, repo, commit, resolvedBranch, workspacePath, roots, log);
+        await _skillCopy.InstallAsync(
+                skill, source, repo, commit, resolvedBranch, workspacePath, roots, log, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public void Uninstall(SkillDefinition skill, string workspacePath, IReadOnlyList<string> roots, Action<string>? log = null)
@@ -181,73 +187,6 @@ public sealed class SkillInstaller
 
     public static string ResolvePluginDestination(string workspacePath, SkillDefinition plugin) =>
         ProjectCopy.ResolveDestination(workspacePath, plugin);
-
-    private async Task InstallCompanionsAsync(
-        SkillDefinition plugin,
-        string pluginCache,
-        GitHubRepoRef pluginRepo,
-        string commit,
-        string branch,
-        string workspacePath,
-        IReadOnlyList<string> roots,
-        Action<string>? log,
-        CancellationToken cancellationToken)
-    {
-        if (plugin.CompanionSkills.Count == 0)
-        {
-            return;
-        }
-
-        var skillRoots = SkillRoots.Normalize(roots);
-        log?.Invoke($"一并安装随附 Skill → {string.Join(", ", skillRoots.Select(root => root + "/skills"))}");
-        foreach (var companion in plugin.CompanionSkills)
-        {
-            if (!RepoUrl.TryParse(companion.Repo, out var repo))
-            {
-                throw new InvalidOperationException($"随附 Skill {companion.DisplayName} 的仓库地址无效。");
-            }
-
-            var cache = repo.HttpsUrl.Equals(pluginRepo.HttpsUrl, StringComparison.OrdinalIgnoreCase)
-                ? pluginCache
-                : _paths.RepoCacheDirectory(repo);
-            if (!ReferenceEquals(cache, pluginCache))
-            {
-                await _gh.CloneOrUpdateAsync(repo, cache, log, branch, cancellationToken).ConfigureAwait(false);
-                commit = await _gh.ReadHeadCommitAsync(cache, cancellationToken).ConfigureAwait(false);
-            }
-
-            var source = ResolveSource(cache, companion.ResolvedSourcePath, companion.DisplayName);
-            InstallSkillCopy(companion, source, repo, commit, branch, workspacePath, skillRoots, log);
-        }
-    }
-
-    private void InstallSkillCopy(
-        SkillDefinition skill,
-        string source,
-        GitHubRepoRef repo,
-        string commit,
-        string branch,
-        string workspacePath,
-        IReadOnlyList<string> roots,
-        Action<string>? log)
-    {
-        var targets = SkillRoots.Normalize(roots);
-        if (targets.Count == 0)
-        {
-            throw new InvalidOperationException($"请至少选择一个安装目标（默认 {SkillRoots.DefaultRoot}）。");
-        }
-
-        var marker = CreateMarker(skill, repo.HttpsUrl, commit, branch);
-        foreach (var root in targets)
-        {
-            var dest = WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
-            var label = skill.IsCompanion ? "随附 Skill" : "Skill";
-            log?.Invoke($"安装 {label} {skill.DisplayName} → {root}/skills/{skill.ResolvedInstallName}");
-            SkillCopy.Replace(source, dest);
-            WriteMarker(dest, marker);
-            WriteSnapshot(workspacePath, skill.Id, root, dest, commit, branch);
-        }
-    }
 
     private void UninstallSkillCopy(
         SkillDefinition skill,

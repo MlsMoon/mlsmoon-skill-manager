@@ -106,6 +106,20 @@ def invoke_button(automation_id: str, timeout: float) -> None:
     fail(f"button {automation_id}: {last}")
 
 
+def wait_summary(prefix: str, timeout: float) -> None:
+    deadline = time.time() + timeout
+    last = ""
+    while time.time() < deadline:
+        window = window_control(8)
+        text = window.TextControl(AutomationId="CatalogFilterSummary")
+        if text.Exists(0.3, 0.1):
+            last = text.Name
+            if last.startswith(prefix):
+                return
+        time.sleep(0.2)
+    fail(f"summary missing {prefix}: {last!r}")
+
+
 def wait_named(name: str, timeout: float) -> None:
     window = window_control(8)
     if window.TextControl(Name=name).Exists(timeout, 0.3):
@@ -203,7 +217,13 @@ def main() -> None:
         invoke_button("DialogPrimary", 8)
         invoke_button(OPEN_FOLDER_ID, 20)
         wait_probe(probe, "open-folder", "open-psd-kit")
-        print("ui_flow ok: settings + folders + open-folder")
+        invoke_button("Filter-install-installed", 8)
+        wait_summary("显示 1", 8)
+        invoke_button("Filter-kind-skill", 8)
+        wait_summary("显示 1", 8)
+        invoke_button("Filter-kind-plugin", 8)
+        wait_summary("显示 0", 8)
+        print("ui_flow ok: settings + folders + open-folder + filter")
     finally:
         stop(proc)
         shutil.rmtree(temp, ignore_errors=True)

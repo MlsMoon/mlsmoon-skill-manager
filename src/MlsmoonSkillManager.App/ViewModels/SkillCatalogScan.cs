@@ -19,6 +19,7 @@ public sealed class SkillCatalogScan
     private readonly Action<LanProbe> _applyLan;
     private readonly Action<RepoAccess> _applyNas;
     private readonly Action _raiseUpdate;
+    private readonly SkillCatalogMeta _meta;
     private CancellationTokenSource? _gitCts;
     private ScanMeter? _meter;
 
@@ -50,6 +51,7 @@ public sealed class SkillCatalogScan
         _applyLan = applyLan;
         _applyNas = applyNas;
         _raiseUpdate = raiseUpdate;
+        _meta = new SkillCatalogMeta(rows, gh, git, skillGit, nasUser, workspace);
     }
 
     public async Task RefreshAccessAsync()
@@ -109,6 +111,11 @@ public sealed class SkillCatalogScan
                 State = AccessState.NoPermission,
                 Message = "所属 Plugin 当前无权限访问"
             };
+        }
+
+        foreach (var row in rows)
+        {
+            await _meta.RefreshAsync(row, null, row.Access.CanInstall).ConfigureAwait(true);
         }
     }
 
@@ -197,19 +204,6 @@ public sealed class SkillCatalogScan
         if (row.Definition.IsLan)
         {
             row.Access = await _git.CheckLanAccessAsync(row.Definition, _nasUser()).ConfigureAwait(true);
-            if (row.Access.CanInstall)
-            {
-                var branch = UnityWorkspace.PickBranch(
-                    row.Definition,
-                    _hasWorkspace() ? UnityWorkspace.ReadEditorVersion(_workspace()) : null);
-                var readme = await _git.TryReadReadmeAsync(
-                        row.Definition,
-                        _nasUser(),
-                        branch?.Name ?? "urp-17.5")
-                    .ConfigureAwait(true);
-                row.ReadmeExcerpt = GitRemote.Excerpt(readme);
-            }
-
             _applyNas(row.Access);
             if (!row.Access.CanInstall)
             {
@@ -255,6 +249,8 @@ public sealed class SkillCatalogScan
         }
 
         row.ApplyGit(status);
+        await _meta.RefreshAsync(row, status.RemoteCommit, row.Access.CanInstall, cancellationToken)
+            .ConfigureAwait(true);
         _raiseUpdate();
     }
 }

@@ -59,11 +59,34 @@ public sealed class WorkspaceGit
             return null;
         }
 
-        var result = await _runner.RunAsync(
+        await _runner.RunAsync(
                 "git",
-                ["-C", directory, "diff", "--quiet", sha],
+                ["-C", directory, "add", "-A"],
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
+        var result = await _runner.RunAsync(
+                "git",
+                ["-C", directory, "diff", "--cached", "--quiet", sha],
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var head = await ReadHeadCommitAsync(directory, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(head))
+        {
+            await _runner.RunAsync(
+                    "git",
+                    ["-C", directory, "reset", "-q"],
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else
+        {
+            await _runner.RunAsync(
+                    "git",
+                    ["-C", directory, "read-tree", "--empty"],
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         return result.ExitCode switch
         {
             0 => true,

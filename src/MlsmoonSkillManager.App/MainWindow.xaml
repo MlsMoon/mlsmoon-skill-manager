@@ -77,11 +77,6 @@
                             <Button Style="{StaticResource PrimaryButton}"
                                     Content="刷新权限"
                                     Command="{Binding RefreshCommand}"/>
-                            <TextBox Style="{StaticResource SearchBox}"
-                                     Width="220"
-                                     Margin="0"
-                                     Tag="筛选名称、描述或类型"
-                                     Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"/>
                         </StackPanel>
                     </ui:Surface.HeaderAction>
                     <StackPanel>
@@ -160,7 +155,9 @@
                         </DockPanel>
                     </ui:Surface>
 
-                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                    <DockPanel Grid.Column="2">
+                        <ui:CatalogFilterBar DockPanel.Dock="Top" DataContext="{Binding CatalogFilter}"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding VisibleSkills}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:SkillRowViewModel}">
@@ -260,6 +257,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
+                    </DockPanel>
                 </Grid>
             </DockPanel>
 

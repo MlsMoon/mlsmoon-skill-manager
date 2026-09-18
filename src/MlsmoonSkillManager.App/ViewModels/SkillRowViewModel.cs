@@ -19,7 +19,7 @@ public sealed class SkillRowViewModel : ObservableObject
     public SkillRowViewModel(SkillDefinition definition)
     {
         Definition = definition;
-        EngineTags = BuildEngineTags(definition);
+        EngineTags = SkillRowPresentation.EngineTags(definition);
         _suppressBranch = true;
         foreach (var branch in definition.Branches.Select(item => item.Name).Where(item => item.Length > 0))
         {
@@ -241,6 +241,14 @@ public sealed class SkillRowViewModel : ObservableObject
         }
     }
 
+    public void ApplyDisplay()
+    {
+        Raise(nameof(Name));
+        Raise(nameof(Description));
+        Raise(nameof(ParentHint));
+        Raise(nameof(CompanionHint));
+    }
+
     public void RefreshInstallSummary()
     {
         if (Installs.Count == 0)
@@ -272,20 +280,6 @@ public sealed class SkillRowViewModel : ObservableObject
     private static string SkillGitRecommend(SkillDefinition definition)
     {
         return MlsmoonSkillManager.Core.Services.SkillGit.RecommendBranch(definition, null, null);
-    }
-
-    private static IReadOnlyList<EngineTagViewModel> BuildEngineTags(SkillDefinition definition)
-    {
-        if (definition.IsUniversal)
-        {
-            return [new EngineTagViewModel("全引擎", BadgeAppearance.Universal)];
-        }
-
-        return definition.ResolvedEngines
-            .Select(engine => new EngineTagViewModel(
-                GameEngines.Label(engine),
-                engine == GameEngines.Godot ? BadgeAppearance.Godot : BadgeAppearance.Unity))
-            .ToList();
     }
 }
 

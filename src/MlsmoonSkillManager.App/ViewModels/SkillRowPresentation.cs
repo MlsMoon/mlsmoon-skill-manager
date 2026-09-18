@@ -78,4 +78,18 @@ public static class SkillRowPresentation
         definition.IsCompanion && !string.IsNullOrWhiteSpace(definition.ParentPluginName)
             ? $"属于 {definition.ParentPluginName}，装完后才会出现。"
             : "";
+
+    public static IReadOnlyList<EngineTagViewModel> EngineTags(SkillDefinition definition)
+    {
+        if (definition.IsUniversal)
+        {
+            return [new EngineTagViewModel("全引擎", BadgeAppearance.Universal)];
+        }
+
+        return definition.ResolvedEngines
+            .Select(engine => new EngineTagViewModel(
+                GameEngines.Label(engine),
+                engine == GameEngines.Godot ? BadgeAppearance.Godot : BadgeAppearance.Unity))
+            .ToList();
+    }
 }

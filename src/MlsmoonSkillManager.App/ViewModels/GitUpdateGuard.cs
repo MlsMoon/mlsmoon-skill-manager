@@ -20,7 +20,7 @@ public static class GitUpdateGuard
                 showDialog = false;
                 return true;
             case SkillGitState.Ahead:
-                message = $"{row.Name} 本机超前远端。工作区副本没有 .git，不能 ↑ Push。↓ Pull 会把本机装回更旧的远端提交。";
+                message = $"{row.Name} 本机超前远端。↑ Push 不会把提交推到远端，只是说明工作区超前。";
                 showDialog = true;
                 return true;
             case SkillGitState.Diverged:
