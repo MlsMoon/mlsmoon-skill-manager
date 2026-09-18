@@ -8,6 +8,44 @@ GitHub Release 正文只从本文件抽取对应版本段落。每个已发布�
 
 Write what a user can notice. English first, Chinese below, separated by `---`. Do not ship a compare link as the only note. Extractor: `Scripts/release_notes.ps1`.
 
+## [0.2.5] - 2026-09-18
+
+Install folders stay git repos. Cards show the real HEAD branch, and Pull / Commit / Push each ask before they run.
+
+### Workspace
+
+- The branch list shows `git branch --show-current`, not the Unity-recommended default. Switching branches asks first and refuses a dirty tree.
+- A copied Plugin / Package with `.git` but no HEAD shows **Init Git**. Confirm, then attach `origin/<branch>` with `reset --hard` and a progress bar. Untracked files such as `.mlsmoon` stay.
+- Cards keep **↓ Pull**, **Commit**, and **↑ Push**. Each opens a confirm dialog. Commit only records a local commit; Push only sends commits that already exist. Both stay off until enabled under Settings → Connection.
+- Plugin routing skills come from the repo `.mlsmoon/skill.json`, not catalog companions. Use **Sync from source** / **Sync to source** on those cards.
+- NAS SSH passwords go in Windows Credential Manager after a login on the Connection tab.
+
+### UI
+
+- Catalog filters: installed / not installed, Skill / Plugin / Package, engine.
+- Switching settings tabs no longer resizes the dialog.
+- DEV **Restart** waits for this process, rebuilds, then runs `Scripts\rundev.bat` so the new binary actually loads.
+- Init Git keeps its dialog open with a progress bar. A read-only progress binding no longer crashes the window on launch.
+
+---
+
+安装目录继续当 git 仓库。卡片显示真正的 HEAD 分支；Pull / Commit / Push 点了都会先确认。
+
+### 工作区
+
+- 分支下拉显示 `git branch --show-current`，不再用 Unity 推荐分支顶掉。切换前强警告，工作区不干净会拒绝。
+- Plugin / Package 有 `.git` 但还没有 HEAD 时出现 **初始化 Git**。确认后接到 `origin/<分支>` 并 `reset --hard`，带进度条。`.mlsmoon` 这类未跟踪文件留下。
+- 卡片常驻 **↓ Pull**、**Commit**、**↑ Push**，点了都弹确认。Commit 只提交，不顺手 Push；Push 只推已经存在的提交。两个开关默认关，在设置「连接」里打开。
+- 路由 Skill 由仓库 `.mlsmoon/skill.json` 生成，不再当 catalog companion。路由卡用「从源同步 / 同步到源」。
+- NAS SSH 密码在「连接」里登录后写入 Windows 凭据管理器。
+
+### 界面
+
+- 清单可按已安装 / 未安装、Skill / Plugin / Package、引擎筛选。
+- 切设置 Tab 不再改对话框宽高。
+- DEV「重启」会等当前进程退出，再跑 `Scripts\rundev.bat` 重新编译启动，避免还是旧 exe。
+- 初始化 Git 对话框里有进度条。进度条绑只读属性不再导致窗口一打开就崩溃。
+
 ## [0.2.4] - 2026-09-18
 
 Packages are their own catalog kind. Cards show whether the local tree is ahead of or behind the remote. Opening a folder and the startup scan each run once.
