@@ -60,12 +60,16 @@ if ($tags -contains "catalog") {
         foreach ($item in $skills) {
             Assert-True (-not [string]::IsNullOrWhiteSpace($item.id)) "skill missing id"
             Assert-True ($ids.Add([string]$item.id)) "duplicate id: $($item.id)"
+            Assert-True (-not $item.PSObject.Properties['name'] -or [string]::IsNullOrWhiteSpace($item.name)) "public skill $($item.id) must not set name"
+            Assert-True (-not $item.PSObject.Properties['description'] -or [string]::IsNullOrWhiteSpace($item.description)) "public skill $($item.id) must not set description"
         }
 
         $companionIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($item in @($plugins) + @($packages)) {
             Assert-True (-not [string]::IsNullOrWhiteSpace($item.id)) "plugin/package missing id"
             Assert-True ($ids.Add([string]$item.id)) "duplicate id: $($item.id)"
+            Assert-True (-not $item.PSObject.Properties['name'] -or [string]::IsNullOrWhiteSpace($item.name)) "public $($item.id) must not set name"
+            Assert-True (-not $item.PSObject.Properties['description'] -or [string]::IsNullOrWhiteSpace($item.description)) "public $($item.id) must not set description"
             if ($item.installPath) {
                 Assert-True ($item.installPath -notmatch '\.\.') "installPath escapes workspace: $($item.installPath)"
             }
@@ -73,6 +77,8 @@ if ($tags -contains "catalog") {
                 Assert-True ($companionIds.Add([string]$companion.id)) "duplicate companion id: $($companion.id)"
                 $inSkills = $skills | Where-Object { $_.id -eq $companion.id }
                 Assert-True (-not $inSkills) "companion $($companion.id) must not be in skills[]"
+                Assert-True (-not $companion.PSObject.Properties['name'] -or [string]::IsNullOrWhiteSpace($companion.name)) "companion $($companion.id) must not set name"
+                Assert-True (-not $companion.PSObject.Properties['description'] -or [string]::IsNullOrWhiteSpace($companion.description)) "companion $($companion.id) must not set description"
             }
         }
 

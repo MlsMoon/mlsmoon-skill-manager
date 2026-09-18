@@ -55,7 +55,7 @@ description: 用子 agent + 参数 `-t -xxx` 验证 Moon Game Dev Tool Manager�
 | 参数 | 脚本会做 | 子 agent 还要做 |
 |---|---|---|
 | `-build` | `dotnet build` 解决方案 | 编不过就停 |
-| `-catalog` | 读真实 `catalog/skills.json`：id 唯一、companion 不在 `skills`、`spine-gpu-skinning` 只有 unity、psd/3d 为 all、公开清单没有 `source: lan` / 内网 host、`installPath` 不含 `..`；`packages` 与 `plugins` 同样校验 | 对照 `mlsmoon-catalog` |
+| `-catalog` | 读真实 `catalog/skills.json`：id 唯一、companion 不在 `skills`、`spine-gpu-skinning` 只有 unity、psd/3d 为 all、公开清单没有 `source: lan` / 内网 host / `name` / `description`、`installPath` 不含 `..`；`packages` 与 `plugins` 同样校验 | 对照 `mlsmoon-catalog` |
 | `-install` | 跑已有 `CatalogAndInstall`（真临时目录、无 mock） | 改了安装/标记/companion 时看失败信息，不要补新 Fact。对照 `mlsmoon-install` |
 | `-workspace` | 跑已有 `WorkspaceBook` | 列表迁入/去重/移除是否符合 `mlsmoon-workspace` |
 | `-sync` | 用真 `git` 建临时仓库：`ls-remote --heads`、两目录文件对照；断言冲突策略（本地改动 + 远端更新 = 不能自动更新） | 对照 `mlsmoon-workspace` 卡片状态 |
