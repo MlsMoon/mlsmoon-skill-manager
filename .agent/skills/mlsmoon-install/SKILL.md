@@ -50,7 +50,7 @@ Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Packa
 - `sourcePath` 相对缓存根；`.` 表示仓库根
 - `installPath` 必须落在工作区内，不能是绝对路径，不能含 `.` / `..` 段
 
-缓存目录：`%LocalAppData%\MlsmoonSkillManager\cache\`。设置里可清空；下次安装会重新拉。
+缓存目录：`%LocalAppData%\MlsmoonSkillManager\cache\`。克隆缓存和 `catalog-meta.json`（卡片名称/简介）都在这里。设置里可清空；下次安装会重新拉仓库，下次扫描会按远端 commit 重读名称/简介。
 
 ## 不要做
 

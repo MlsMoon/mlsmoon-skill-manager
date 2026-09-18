@@ -16,6 +16,7 @@ Package 独立成类，卡片能分清本机和远端谁超前，打开目录和
 
 - 清单增加 **Package**，和 Skill / Plugin 分开。局域网 URP 一类条目走 Package，不再标成 Plugin。
 - companion skill 仍随插件安装，不单独出现在清单里。
+- 卡片名称和简介改从仓库 `SKILL.md` / README 读取，按远端 commit 缓存在本机；公开清单不再手写 `name` / `description`。
 
 ### 工作区
 

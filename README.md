@@ -18,7 +18,7 @@ Windows 桌面应用：把 **MlsMoon 用 Git 管起来的 Agent Skill、Unity Pl
 2. **Skill** 自动检测 `.claude` / `.grok` / `.codex`（旧版 Codex）。**默认安装目标是 `.agents`**。旧目录 `.agent` 会当成 `.agents`。
 3. **Plugin** 默认 `{工作区}/Assets/Plugins/{installName}/`。例如公开仓库 [SpineGpuSkinning](https://github.com/MlsMoon/SpineGpuSkinning) 装到 `Assets/Plugins/SpineGpuSkinning`。
 4. **Package** 和 Plugin 同一套安装逻辑，默认 `{工作区}/Packages/{installName}/`。局域网 URP 包写本机 override 的 `packages` 数组，不要放进 `plugins`。
-5. 只展示 `catalog/skills.json` 里登记过的条目（名字 ↔ 仓库链接）。随附 Skill 不能当独立项安装；所属 Plugin / Package 装进当前工作区后才显示。
+5. 只展示 `catalog/skills.json` 里登记过的条目（`id` ↔ 仓库）。卡片名称和简介从仓库 `SKILL.md` / README 读，并按 commit 缓存在本机。随附 Skill 不能当独立项安装；所属 Plugin / Package 装进当前工作区后才显示。
 6. 用本机 [GitHub CLI](https://cli.github.com/)（`gh`）检查仓库权限。
 7. 私有仓库如果当前账号看不到：仍然显示 **名字**，并提示 **当前无权限访问**，不能安装。
 8. 有权限时：Skill 复制到 `{工作区}/{根}/skills/{installName}/`；Plugin / Package 复制到自己的 `installPath`，并一并写入 `companionSkills`。
@@ -57,10 +57,7 @@ Skill：
 ```json
 {
   "id": "open-psd-kit",
-  "name": "open-psd-kit",
   "repo": "https://github.com/MlsMoon/open-psd-kit",
-  "sourcePath": ".",
-  "installName": "open-psd-kit",
   "engines": ["all"]
 }
 ```
@@ -70,18 +67,12 @@ Plugin（随附 Skill 写在 `companionSkills`，不要放进 `skills`）：
 ```json
 {
   "id": "spine-gpu-skinning",
-  "name": "SpineGpuSkinning",
   "repo": "https://github.com/MlsMoon/SpineGpuSkinning",
-  "sourcePath": ".",
   "installName": "SpineGpuSkinning",
   "installPath": "Assets/Plugins/SpineGpuSkinning",
   "engines": ["unity"],
   "companionSkills": [
-    {
-      "id": "gpuspine-use-plugin",
-      "sourcePath": "Skills~/gpuspine-use-plugin",
-      "installName": "gpuspine-use-plugin"
-    }
+    { "id": "gpuspine-use-plugin", "sourcePath": "Skills~/gpuspine-use-plugin" }
   ]
 }
 ```

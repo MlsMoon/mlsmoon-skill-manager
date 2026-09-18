@@ -33,7 +33,7 @@ companion 的权限跟所属 Plugin，不要单独 `gh repo view`。
 - **可达但要认证**（`NeedsAuth`）：TCP 22 通，`ls-remote` 报 `Permission denied` / `publickey` / `password`。卡片：**NAS 需要 SSH 密码或密钥**。应用不会弹密码，用户去配密钥或在终端 `ssh`
 - **已连通但没仓库权**（`NoPermission`）：认证过了或错误不是密码问题，读不了仓库路径
 
-有权：用 `git archive --remote` 读 `Readme.md` 当卡片说明；默认按工作区 `ProjectSettings/ProjectVersion.txt` 选分支，用户可在卡片上改选。克隆到缓存后复制到 `installPath`（去掉 `.git`），并合并 `Packages/manifest.json`。
+有权：用 `git archive --remote` 读仓库 README（或 Skill 的 `SKILL.md`）当卡片名称/简介，结果写进 `%LocalAppData%\MlsmoonSkillManager\cache\catalog-meta.json`，按远端 commit 复用，不要每次探测都重抓。默认按工作区 `ProjectSettings/ProjectVersion.txt` 选分支，用户可在卡片上改选。克隆到缓存后复制到 `installPath`（去掉 `.git`），并合并 `Packages/manifest.json`。
 
 NAS SSH 用户名存在 `UserSettings.NasUser`，默认本机 Windows 用户名，可在设置「连接」里改。
 
