@@ -52,7 +52,7 @@ NAS SSH 用户名存在 `UserSettings.NasUser`，填的是 `ssh://用户名@主�
 
 - GitHub（gh）、局域网、NAS 分三条
 - NAS 用户 / 密码 / 登录 / 退出
-- 「允许 Push」「允许 Commit」默认关，打开后卡片 ↑ Push 才可点（Commit 只在有本地改动时先弹出说明再提交）
+- 「允许 Push」「允许 Commit」默认关。打开 Push 后卡片 ↑ Push 才可点；打开 Commit 后卡片 Commit 才可点。Commit 只提交，不会顺手 Push
 - 「网络可达但要密码」和「完全不可达」必须分开写
 - 未配置局域网条目时说明：把 `source: lan` 写进本机 `skills.override.json`
 
