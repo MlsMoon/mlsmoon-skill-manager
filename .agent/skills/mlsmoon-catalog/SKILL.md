@@ -17,7 +17,7 @@ description: 维护公开 catalog、本机 override、引擎标记，以及新�
 - 本地 `Scripts/build.ps1` / 安装包按本机 `catalog/` 原样打包，有 override 就打进去；文件本身不要提交
 - GitHub checkout 没有 override，所以 CI / GitHub Release 的包没有内网地址
 
-`CatalogStore` 先读捆绑 `skills.json`，再按 `id` 合并捆绑 override、仓库旁 override。`kind` 在加载时标成 skill / plugin / package。没有 `.mlsmoon` 的旧 Plugin / Package 仍把 catalog `companionSkills` 展开成 `ToolKind.Companion`。有 `.mlsmoon/skill.json` 且 `kind` 为 `routing` 时，只合成 **一条路由 Skill**（`CatalogRouting`），不要再展开 `Skills~` 里的详细 skill。
+`CatalogStore` 先读捆绑 `skills.json`，再按 `id` 合并捆绑 override、仓库旁 override。`kind` 在加载时标成 skill / plugin / package。没有 `.mlsmoon` 的旧 Plugin / Package 仍把 catalog `companionSkills` 展开成 `ToolKind.Companion`。有 `.mlsmoon/skill.json` 且 `kind` 为 `routing` 时，只合成 **一条路由 Skill**（`CatalogRouting`），不要再展开 `Skills~` 里的详细 skill。`CatalogRouting` 只把路由挂到 `.mlsmoon` 里 `parentId` 对应的那条 Plugin / Package 上；Plugin 的路由不得出现在 Package 名下。卡片顺序由 `CatalogOrder` 排：独立 Skill → Plugin（路由/随附紧跟父级）→ Package。
 
 卡片上的 **名称 / 简介不写进清单**。Skill / 随附 Skill 读仓库里的 `SKILL.md` 头（`name`、`description`）；Plugin / Package 读 README 标题和第一段。解析在 `CatalogMeta`，拉取在 `CatalogMetaSync`。缓存是 `%LocalAppData%\MlsmoonSkillManager\cache\catalog-meta.json`，按 `id` + 仓库 + 文件 + 远端 commit。commit 没变就不再抓；设置里清空缓存、或对照 Git 发现 tip 变了，才会重读。清单里若仍写 `name` / `description`，只当还没缓存时的退路，公开 `skills.json` 不要带这两项。`readmePath` 仅 LAN 文件名不是 `Readme.md` 时才写。
 

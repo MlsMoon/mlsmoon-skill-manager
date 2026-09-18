@@ -23,6 +23,7 @@
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="VisibleIfTrue"/>
         <conv:BoolToVisibilityConverter x:Key="VisibleIfFalse" Invert="True"/>
+        <conv:BoolToVisibilityConverter x:Key="VisibleOrHidden" FalseVisibility="Hidden"/>
     </Window.Resources>
     <Grid>
         <Grid.Background>
@@ -305,7 +306,7 @@
                 <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
                     <Grid>
                         <StackPanel VerticalAlignment="Top"
-                                    Visibility="{Binding IsSettingsAppearance, Converter={StaticResource VisibleIfTrue}}">
+                                    Visibility="{Binding IsSettingsAppearance, Converter={StaticResource VisibleOrHidden}}">
                             <ui:FieldRow Header="主题" LabelWidth="80">
                                 <Border Style="{StaticResource Segmented}" Margin="0">
                                     <ItemsControl ItemsSource="{Binding Themes}">
@@ -344,7 +345,7 @@
                         </StackPanel>
 
                         <StackPanel VerticalAlignment="Top"
-                                    Visibility="{Binding IsSettingsConnection, Converter={StaticResource VisibleIfTrue}}">
+                                    Visibility="{Binding IsSettingsConnection, Converter={StaticResource VisibleOrHidden}}">
                             <ui:FieldRow Header="GitHub" LabelWidth="80">
                                 <ui:StatusLabel Text="{Binding GhStatus}" Tone="{Binding GhTone}"/>
                             </ui:FieldRow>
@@ -396,7 +397,7 @@
                         </StackPanel>
 
                         <StackPanel VerticalAlignment="Top"
-                                    Visibility="{Binding IsSettingsUpdates, Converter={StaticResource VisibleIfTrue}}">
+                                    Visibility="{Binding IsSettingsUpdates, Converter={StaticResource VisibleOrHidden}}">
                             <ui:FieldRow Header="当前" LabelWidth="80">
                                 <TextBlock VerticalAlignment="Center"
                                            Text="{Binding Version, StringFormat=v{0}}"/>
@@ -427,7 +428,7 @@
                                         Margin="0"/>
                             </StackPanel>
                             <StackPanel Margin="0,8,0,0"
-                                        Visibility="{Binding IsDownloadingUpdate, Converter={StaticResource VisibleIfTrue}}">
+                                        Visibility="{Binding IsDownloadingUpdate, Converter={StaticResource VisibleOrHidden}}">
                                 <ProgressBar Value="{Binding UpdateProgress}"
                                              Height="6"/>
                                 <TextBlock Style="{StaticResource Caption}"
@@ -437,7 +438,7 @@
                         </StackPanel>
 
                         <StackPanel VerticalAlignment="Top"
-                                    Visibility="{Binding IsSettingsFolders, Converter={StaticResource VisibleIfTrue}}">
+                                    Visibility="{Binding IsSettingsFolders, Converter={StaticResource VisibleOrHidden}}">
                             <ui:FieldRow Header="设置" LabelWidth="80">
                                 <DockPanel>
                                     <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}"
@@ -484,7 +485,7 @@
                         </StackPanel>
 
                         <StackPanel VerticalAlignment="Top"
-                                    Visibility="{Binding IsSettingsAbout, Converter={StaticResource VisibleIfTrue}}">
+                                    Visibility="{Binding IsSettingsAbout, Converter={StaticResource VisibleOrHidden}}">
                             <ui:FieldRow Header="版本" LabelWidth="80">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock VerticalAlignment="Center"
@@ -507,7 +508,7 @@
                             </ui:FieldRow>
                         </StackPanel>
 
-                        <DockPanel Visibility="{Binding IsSettingsLog, Converter={StaticResource VisibleIfTrue}}">
+                        <DockPanel Visibility="{Binding IsSettingsLog, Converter={StaticResource VisibleOrHidden}}">
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
                                 <Button Style="{StaticResource GhostButton}"
                                         Content="复制"

@@ -29,7 +29,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 - 窗口用 `WindowStyle=None` + `WindowChrome` + 自定义 `TitleBar`，不要系统白底标题栏；深色用 DWM immersive dark mode
 - 壳层：标题栏 → 当前工作区命令条（在工作区列表上方通栏）→ 左侧工作区 | 右侧卡片 → 底部状态栏（只留末行日志）
-- 卡片列表上方是 `CatalogFilterBar`：搜索 + 分段筛选（已安装 / 未安装、Skill / Plugin / Package、Unity / Godot / 全引擎）。多组可叠加。随附 / 路由 Skill 仍要父级已安装才出现。筛选逻辑在 `CatalogFilter`，不要再往 `MainViewModel` 里堆
+- 卡片列表上方是 `CatalogFilterBar`：搜索 + 分段筛选（已安装 / 未安装、Skill / Plugin / Package、Unity / Godot / 全引擎）。多组可叠加。随附 / 路由 Skill 仍要父级已安装才出现。`CatalogFilter.Fill` 必须按 `CatalogOrder` 排：独立 Skill，再 Plugin 及其路由/随附，再 Package；Bind 后追加的路由不能留在列表末尾（会看起来挂在 Package 下面）。Kind 筛选跟父级：Plugin 带出其路由，Package 带出其随附，Skill 只出独立 Skill。筛选逻辑在 `CatalogFilter`，不要再往 `MainViewModel` 里堆
 - 标题栏右侧：版本、`DEV` 角标、设置齿轮。有应用更新时齿轮上标「新」
 - DEV 角标用 `Badge Appearance="Dev"`（`DevBadgeBrush` / `DevBadgeTextBrush`）
 
@@ -39,7 +39,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 - **连接**：见 `mlsmoon-access`。GitHub / 局域网 / NAS。NAS 登录用 PasswordBox（不要绑定明文到 settings）。「允许 Push / Commit」两个勾选在这个 Tab
 - **更新**：见 `mlsmoon-release`。仅非 DEV。下载进度条。DEV 不出现这个 Tab，也不检查 / 下载 / 覆盖安装，齿轮不标「新」
-- Card 宽固定（`CardMinWidth` = `CardMaxWidth`），切 Tab 不能改宽度
+- Card 宽固定（`CardMinWidth` = `CardMaxWidth`）。未选中的设置页用 `Hidden` 而不是 `Collapsed`，切 Tab 不能改对话框宽高
 - 日志默认只在状态栏留末行；全文在设置「日志」Tab
 
 ## 动效
@@ -61,7 +61,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 - 为 Theme 字符串、mutex 名字、按钮文案写 Theory
 - 悬停放大卡片或按钮
-- 切设置 Tab 时改对话框宽度
+- 切设置 Tab 时改对话框宽高
 - 继续往 `MainViewModel.cs` / `MainWindow.xaml` 堆另一摊职责；已经读不下去再拆，不要为了行数挤代码
 
 改完跑 `-t -ui`。`Scripts/ui_flow.py` 是整段流程：自己编译、后台开 `--ui-test`（`MlsmoonUiTest`，不激活、不进任务栏、屏外且透明），只用 InvokePattern 点设置 / 连接 / 位置 / 打开目录 / 筛选芯片，写 probe。不要 `SetActive`、不要 `Click`、不要 `SendKeys`，以免抢用户焦点。`--ui-test` 跳过 gh/git 扫描。启动进度条只走一轮。卡片「打开目录」绑行上的 `OpenFolderCommand`，不要再绕 Window + `CanExecute(null)`。其它卡片按钮的 `Command` 必须带 `CommandParameter`，且 `CanExecute(null)` 不能把按钮永远灰掉。真开文件夹走 `Shell.Application.Explore`，不要只丢一个没引号的 `explorer.exe` 路径。

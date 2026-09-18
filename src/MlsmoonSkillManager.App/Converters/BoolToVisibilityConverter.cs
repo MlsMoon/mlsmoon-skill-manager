@@ -8,6 +8,8 @@ public sealed class BoolToVisibilityConverter : IValueConverter
 {
     public bool Invert { get; set; }
 
+    public Visibility FalseVisibility { get; set; } = Visibility.Collapsed;
+
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         var flag = value is true;
@@ -16,7 +18,7 @@ public sealed class BoolToVisibilityConverter : IValueConverter
             flag = !flag;
         }
 
-        return flag ? Visibility.Visible : Visibility.Collapsed;
+        return flag ? Visibility.Visible : FalseVisibility;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

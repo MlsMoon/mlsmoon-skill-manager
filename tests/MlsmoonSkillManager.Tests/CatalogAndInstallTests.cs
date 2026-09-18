@@ -311,12 +311,27 @@ public class CatalogAndInstallTests
                 CompanionSkills = [leftover]
             };
             leftover.ParentPluginId = plugin.Id;
+            var packageDest = Path.Combine(workspace, "Packages", "UrpPackageIGP", ".mlsmoon");
+            Directory.CreateDirectory(packageDest);
+            File.WriteAllText(
+                Path.Combine(packageDest, "skill.json"),
+                """{"id":"spine-gpu-skinning-skill","kind":"routing","parentId":"spine-gpu-skinning"}""");
+            var package = new SkillDefinition
+            {
+                Id = "urp-package-igp",
+                Name = "UrpPackageIGP",
+                Kind = ToolKind.Package,
+                InstallName = "UrpPackageIGP",
+                InstallPath = "Packages/UrpPackageIGP"
+            };
             var bound = CatalogRouting.Bind(
-                [plugin, leftover],
+                [plugin, leftover, package],
                 workspace,
                 new AppPaths(root, Path.Combine(root, "config"), Path.Combine(root, "cache")));
             Assert.True(Assert.Single(plugin.CompanionSkills).IsRouting);
             Assert.Equal("spine-gpu-skinning-skill", plugin.CompanionSkills[0].Id);
+            Assert.Equal("spine-gpu-skinning", plugin.CompanionSkills[0].ParentPluginId);
+            Assert.Empty(package.CompanionSkills);
             Assert.Contains("gpuspine-use-plugin", bound.RemoveIds);
         }
         finally

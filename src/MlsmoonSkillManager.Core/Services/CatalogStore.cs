@@ -69,12 +69,7 @@ public sealed class CatalogStore
 
         catalog.Plugins = [];
         catalog.Packages = [];
-        catalog.Skills = map.Values
-            .OrderBy(s => s.IsProjectCopy || s.IsCompanion ? 1 : 0)
-            .ThenBy(s => s.IsCompanion ? s.ParentPluginId : s.Id, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(s => s.IsCompanion ? 1 : 0)
-            .ThenBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        catalog.Skills = [.. CatalogOrder.Sort(map.Values, skill => skill)];
         return catalog;
     }
 

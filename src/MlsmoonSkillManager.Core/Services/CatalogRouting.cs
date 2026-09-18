@@ -16,41 +16,41 @@ public static class CatalogRouting
         AppPaths paths)
     {
         var result = new CatalogRoutingBindResult();
-        foreach (var plugin in skills.Where(item => item.IsProjectCopy).ToList())
+        foreach (var parent in skills.Where(item => item.IsProjectCopy).ToList())
         {
-            var config = ReadConfig(plugin, workspacePath, paths);
-            if (config is null || !config.IsRouting)
+            var config = ReadConfig(parent, workspacePath, paths);
+            if (config is null || !config.IsRouting || !OwnsRouting(parent, config))
             {
                 continue;
             }
 
-            var routing = MlsmoonSkillConfig.ToRoutingCompanion(plugin, config);
+            var routing = MlsmoonSkillConfig.ToRoutingCompanion(parent, config);
             var existing = skills.FirstOrDefault(item =>
                 item.Id.Equals(routing.Id, StringComparison.OrdinalIgnoreCase));
-            plugin.CompanionSkills.Clear();
+            parent.CompanionSkills.Clear();
             if (existing is not null)
             {
                 existing.IsRouting = true;
                 existing.Kind = ToolKind.Companion;
-                existing.ParentPluginId = plugin.Id;
-                existing.ParentPluginName = plugin.DisplayName;
+                existing.ParentPluginId = parent.Id;
+                existing.ParentPluginName = parent.DisplayName;
                 existing.InstallName = string.IsNullOrWhiteSpace(existing.InstallName) ? routing.Id : existing.InstallName;
                 if (string.IsNullOrWhiteSpace(existing.Repo))
                 {
-                    existing.Repo = plugin.Repo;
+                    existing.Repo = parent.Repo;
                 }
 
-                plugin.CompanionSkills.Add(existing);
+                parent.CompanionSkills.Add(existing);
             }
             else
             {
-                plugin.CompanionSkills.Add(routing);
+                parent.CompanionSkills.Add(routing);
                 result.Add.Add(routing);
             }
 
             foreach (var companion in skills.Where(item =>
                          item.IsCompanion
-                         && item.ParentPluginId.Equals(plugin.Id, StringComparison.OrdinalIgnoreCase)
+                         && item.ParentPluginId.Equals(parent.Id, StringComparison.OrdinalIgnoreCase)
                          && !item.Id.Equals(routing.Id, StringComparison.OrdinalIgnoreCase)))
             {
                 result.RemoveIds.Add(companion.Id);
@@ -89,4 +89,8 @@ public static class CatalogRouting
 
         return null;
     }
+
+    private static bool OwnsRouting(SkillDefinition parent, MlsmoonSkillFile config) =>
+        string.IsNullOrWhiteSpace(config.ParentId)
+        || config.ParentId.Equals(parent.Id, StringComparison.OrdinalIgnoreCase);
 }

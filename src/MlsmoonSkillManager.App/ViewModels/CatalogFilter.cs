@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using MlsmoonSkillManager.Core.Models;
+using MlsmoonSkillManager.Core.Services;
 
 namespace MlsmoonSkillManager.App.ViewModels;
 
@@ -69,7 +70,7 @@ public sealed class CatalogFilter : ObservableObject
     {
         visible.Clear();
         var listed = 0;
-        foreach (var row in all)
+        foreach (var row in CatalogOrder.Sort(all, item => item.Definition))
         {
             if (row.IsCompanion && !ParentInstalled(row, all))
             {
@@ -77,7 +78,7 @@ public sealed class CatalogFilter : ObservableObject
             }
 
             listed++;
-            if (Matches(row))
+            if (Matches(row, all))
             {
                 visible.Add(row);
             }
@@ -86,7 +87,7 @@ public sealed class CatalogFilter : ObservableObject
         Summary = $"显示 {visible.Count} / {listed}";
     }
 
-    private bool Matches(SkillRowViewModel row)
+    private bool Matches(SkillRowViewModel row, IList<SkillRowViewModel> all)
     {
         var install = Selected(Installs);
         if (install == "installed" && !row.IsInstalled)
@@ -99,18 +100,7 @@ public sealed class CatalogFilter : ObservableObject
             return false;
         }
 
-        var kind = Selected(Kinds);
-        if (kind == "skill" && row.Definition.Kind is not (ToolKind.Skill or ToolKind.Companion))
-        {
-            return false;
-        }
-
-        if (kind == "plugin" && !row.IsPlugin)
-        {
-            return false;
-        }
-
-        if (kind == "package" && !row.Definition.IsPackage)
+        if (!MatchesKind(row, all, Selected(Kinds)))
         {
             return false;
         }
@@ -172,12 +162,29 @@ public sealed class CatalogFilter : ObservableObject
     private static string Selected(IEnumerable<FilterChip> group) =>
         group.FirstOrDefault(item => item.IsSelected)?.Id ?? "all";
 
-    private static bool ParentInstalled(SkillRowViewModel row, IEnumerable<SkillRowViewModel> all)
+    private static bool MatchesKind(SkillRowViewModel row, IEnumerable<SkillRowViewModel> all, string kind)
     {
-        var parent = all.FirstOrDefault(item =>
-            item.Definition.Id.Equals(row.Definition.ParentPluginId, StringComparison.OrdinalIgnoreCase));
-        return parent?.IsInstalled == true;
+        if (kind is "all" or "")
+        {
+            return true;
+        }
+
+        var parent = Parent(row, all);
+        return kind switch
+        {
+            "skill" => row.Definition.Kind == ToolKind.Skill,
+            "plugin" => row.IsPlugin || (row.IsCompanion && parent?.IsPlugin == true),
+            "package" => row.Definition.IsPackage || (row.IsCompanion && parent?.Definition.IsPackage == true),
+            _ => true
+        };
     }
+
+    private static bool ParentInstalled(SkillRowViewModel row, IEnumerable<SkillRowViewModel> all) =>
+        Parent(row, all)?.IsInstalled == true;
+
+    private static SkillRowViewModel? Parent(SkillRowViewModel row, IEnumerable<SkillRowViewModel> all) =>
+        all.FirstOrDefault(item =>
+            item.Definition.Id.Equals(row.Definition.ParentPluginId, StringComparison.OrdinalIgnoreCase));
 
     private static ObservableCollection<FilterChip> Create(string group, params (string Id, string Label)[] items)
     {

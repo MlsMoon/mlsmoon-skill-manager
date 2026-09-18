@@ -33,6 +33,7 @@ Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Packa
 
 - **不是**独立 catalog Skill，不能单独点「安装」
 - 只在所属 Plugin / Package 已装进当前工作区后显示，角标为「路由」
+- `.mlsmoon` 的 `parentId` 必须等于父级 `id`。`CatalogRouting` 会扫 Plugin 和 Package，对不上的配置直接跳过，避免把 Spine 这类 Plugin 路由挂到 Package 下面
 - 卸载父级时：有本工具标记的子目录一并卸；没有标记的（项目自己维护的路由稿）跳过
 - 权限跟所属 Plugin / Package
 - 插件仓 `.mlsmoon/skill.json` 且 `kind: routing` 时，不要再把 `Skills~` 拷进 Skill 根。旧 catalog `companionSkills` 只给还没这份配置的条目当退路
