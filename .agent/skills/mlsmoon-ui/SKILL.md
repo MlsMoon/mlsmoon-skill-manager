@@ -55,7 +55,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 两把锁分开，本机可以同时开一个 DEV 和一个已安装 exe。右上角版本号旁边，DEV 必须有醒目 `DEV` 角标。
 
-用户说「开一个 dev / rundev / 开 DEV」= 跑 `Scripts\rundev.bat`，把本机 Debug 窗口拉起来给人看。不要理解成开 GitHub PR、也不要为此新建 `dev/*` 分支。
+用户说「开一个 dev / rundev / 开 DEV」= 跑 `Scripts\rundev.bat`，把本机 Debug 窗口拉起来给人看。不要理解成开 GitHub PR、也不要为此新建或切换 `dev/*` 分支。切分支 / 建分支见 `mlsmoon-access`：用户没点名就不要动。
 
 ## 不要做
 

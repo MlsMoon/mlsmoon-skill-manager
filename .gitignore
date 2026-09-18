@@ -10,6 +10,7 @@ publish/
 TestResults/
 *.DotSettings.user
 *.log
+@AutomationLog.txt
 app.ico.bak
 catalog/skills.override.json
 .DS_Store
