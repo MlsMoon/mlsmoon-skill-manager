@@ -19,6 +19,8 @@ description: 维护公开 catalog、本机 override、引擎标记，以及新�
 
 `CatalogStore` 先读捆绑 `skills.json`，再按 `id` 合并捆绑 override、仓库旁 override。`kind` 在加载时标成 skill / plugin / package；`companionSkills` 展开成 `ToolKind.Companion`，带 `ParentPluginId`（父级可以是 Plugin 或 Package）。
 
+卡片上的 **名称 / 简介不写进清单**。Skill / 随附 Skill 读仓库里的 `SKILL.md` 头（`name`、`description`）；Plugin / Package 读 README 标题和第一段。解析在 `CatalogMeta`，拉取在 `CatalogMetaSync`。缓存是 `%LocalAppData%\MlsmoonSkillManager\cache\catalog-meta.json`，按 `id` + 仓库 + 文件 + 远端 commit。commit 没变就不再抓；设置里清空缓存、或对照 Git 发现 tip 变了，才会重读。清单里若仍写 `name` / `description`，只当还没缓存时的退路，公开 `skills.json` 不要带这两项。`readmePath` 仅 LAN 文件名不是 `Readme.md` 时才写。
+
 ## 引擎
 
 当前只支持 **Unity** 和 **Godot**。catalog 用 `engines` 标记，界面显示角标。
@@ -40,11 +42,7 @@ Skill：
 ```json
 {
   "id": "skill-id",
-  "name": "skill-id",
   "repo": "https://github.com/MlsMoon/repo",
-  "description": "一句话",
-  "sourcePath": ".",
-  "installName": "skill-id",
   "engines": ["all"]
 }
 ```
@@ -56,19 +54,12 @@ Plugin 放在同文件的 `plugins` 数组：
 ```json
 {
   "id": "spine-gpu-skinning",
-  "name": "SpineGpuSkinning",
   "repo": "https://github.com/MlsMoon/SpineGpuSkinning",
-  "description": "一句话",
-  "sourcePath": ".",
   "installName": "SpineGpuSkinning",
   "installPath": "Assets/Plugins/SpineGpuSkinning",
   "engines": ["unity"],
   "companionSkills": [
-    {
-      "id": "gpuspine-use-plugin",
-      "sourcePath": "Skills~/gpuspine-use-plugin",
-      "installName": "gpuspine-use-plugin"
-    }
+    { "id": "gpuspine-use-plugin", "sourcePath": "Skills~/gpuspine-use-plugin" }
   ]
 }
 ```
@@ -82,11 +73,11 @@ Package 放在同文件的 `packages` 数组，和 Plugin 同一套字段（`ins
 ```json
 {
   "id": "your-lan-package",
-  "name": "YourLanPackage",
   "source": "lan",
   "repo": "ssh://<nas-host>:<git-path>",
   "host": "<nas-host>",
   "gitPath": "<git-path>",
+  "installName": "YourLanPackage",
   "installPath": "Packages/YourLanPackage",
   "engines": ["unity"],
   "branches": [
@@ -100,6 +91,7 @@ Package 放在同文件的 `packages` 数组，和 Plugin 同一套字段（`ins
 ## 不要做
 
 - 公开 `skills.json` 出现 `source: lan`、真实 `host`、内网 IP、NAS 路径
+- 公开清单再写 `name` / `description`（从仓库读，不要手抄）
 - companion `id` 再出现在 `skills[]`
 - `installPath` 含 `..` 或逃出工作区
 - 本仓库维护 skill 写进公开 catalog
