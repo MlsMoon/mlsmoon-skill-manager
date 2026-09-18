@@ -64,4 +64,4 @@ NAS SSH 用户名存在 `UserSettings.NasUser`，填的是 `ssh://用户名@主�
 - 每次 git 再弹一次密码（设置里登录一次即可）
 - 为权限文案补 xUnit / mock `gh`
 
-清单里 LAN 字段见 `mlsmoon-catalog`。改完跑 `-t -gh`（真 `gh`；没装就 skip）。局域网文案对照本文件，不要伪造探测结果。
+清单里 LAN 字段见 `mlsmoon-catalog`。探测逻辑或失败文案变了、且用户要真打 GitHub 时，再按 `mlsmoon-verify` 跑 `-t -gh`（没装 gh 就 skip）。局域网文案对照本文件，不要伪造探测结果。

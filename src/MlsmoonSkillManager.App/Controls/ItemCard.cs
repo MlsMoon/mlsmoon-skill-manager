@@ -29,7 +29,8 @@ public class ItemCard : HeaderedContentControl
     public static readonly DependencyProperty ActionsProperty = DependencyProperty.Register(
         nameof(Actions),
         typeof(object),
-        typeof(ItemCard));
+        typeof(ItemCard),
+        new FrameworkPropertyMetadata(null, OnActionsChanged));
 
     public static readonly DependencyProperty IsNestedProperty = DependencyProperty.Register(
         nameof(IsNested),
@@ -83,6 +84,20 @@ public class ItemCard : HeaderedContentControl
     {
         get => GetValue(ActionsProperty);
         set => SetValue(ActionsProperty, value);
+    }
+
+    private static void OnActionsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var card = (ItemCard)d;
+        if (e.OldValue is FrameworkElement oldElement)
+        {
+            card.RemoveLogicalChild(oldElement);
+        }
+
+        if (e.NewValue is FrameworkElement newElement)
+        {
+            card.AddLogicalChild(newElement);
+        }
     }
 
     public bool IsNested

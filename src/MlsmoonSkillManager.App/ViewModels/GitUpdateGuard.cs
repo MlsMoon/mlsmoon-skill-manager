@@ -38,8 +38,12 @@ public static class GitUpdateGuard
                 showDialog = true;
                 return true;
             case SkillGitState.LocalChanges:
-                message = $"{row.Name} 远端没有新提交，但工作区有本地修改。↓ Pull 不会覆盖。打开设置里的「允许 Commit」后可用 ↑ Push 提交。";
+                message = $"{row.Name} 远端没有新提交，但工作区有本地修改。↓ Pull 不会覆盖。打开设置里的「允许 Commit」后可用 Commit 提交。";
                 showDialog = true;
+                return true;
+            case SkillGitState.NeedsAttach:
+                message = $"{row.Name}: 还没有接上远端分支，请先点「初始化 Git」。";
+                showDialog = false;
                 return true;
             default:
                 message = "";

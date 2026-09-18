@@ -41,6 +41,18 @@ public class AppDialog : HeaderedContentControl
         typeof(AppDialog),
         new PropertyMetadata(true));
 
+    public static readonly DependencyProperty CloseOnPrimaryProperty = DependencyProperty.Register(
+        nameof(CloseOnPrimary),
+        typeof(bool),
+        typeof(AppDialog),
+        new PropertyMetadata(true));
+
+    public static readonly DependencyProperty AllowDismissProperty = DependencyProperty.Register(
+        nameof(AllowDismiss),
+        typeof(bool),
+        typeof(AppDialog),
+        new PropertyMetadata(true));
+
     public static readonly DependencyProperty CardMaxWidthProperty = DependencyProperty.Register(
         nameof(CardMaxWidth),
         typeof(double),
@@ -93,6 +105,18 @@ public class AppDialog : HeaderedContentControl
         set => SetValue(CloseOnOverlayProperty, value);
     }
 
+    public bool CloseOnPrimary
+    {
+        get => (bool)GetValue(CloseOnPrimaryProperty);
+        set => SetValue(CloseOnPrimaryProperty, value);
+    }
+
+    public bool AllowDismiss
+    {
+        get => (bool)GetValue(AllowDismissProperty);
+        set => SetValue(AllowDismissProperty, value);
+    }
+
     public double CardMaxWidth
     {
         get => (double)GetValue(CardMaxWidthProperty);
@@ -121,7 +145,7 @@ public class AppDialog : HeaderedContentControl
         {
             overlay.MouseLeftButtonDown += (_, args) =>
             {
-                if (CloseOnOverlay && args.OriginalSource == overlay)
+                if (CloseOnOverlay && AllowDismiss && args.OriginalSource == overlay)
                 {
                     Close();
                 }
@@ -130,29 +154,22 @@ public class AppDialog : HeaderedContentControl
 
         if (GetTemplateChild("PART_Close") is Button close)
         {
-            close.Click += (_, _) => Close();
+            close.Click += (_, _) =>
+            {
+                if (AllowDismiss)
+                {
+                    Close();
+                }
+            };
         }
 
         if (GetTemplateChild("PART_Primary") is Button primary)
         {
             primary.Click += (_, _) =>
             {
-                if (PrimaryCommand?.CanExecute(null) == true)
+                if (CloseOnPrimary)
                 {
-                    PrimaryCommand.Execute(null);
-                }
-
-                Close();
-            };
-        }
-
-        if (GetTemplateChild("PART_Secondary") is Button secondary)
-        {
-            secondary.Click += (_, _) =>
-            {
-                if (SecondaryCommand?.CanExecute(null) == true)
-                {
-                    SecondaryCommand.Execute(null);
+                    Close();
                 }
             };
         }
@@ -197,7 +214,7 @@ public class AppDialog : HeaderedContentControl
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (IsOpen && e.Key == Key.Escape)
+        if (IsOpen && e.Key == Key.Escape && AllowDismiss)
         {
             Close();
             e.Handled = true;

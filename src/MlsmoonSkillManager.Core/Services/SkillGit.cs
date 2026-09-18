@@ -71,57 +71,92 @@ public sealed class SkillGit
         string? nasUser,
         string? editorVersion,
         bool canReachRemote,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<ScanProgress>? progress = null)
     {
+        void Step(string text, int percent) =>
+            progress?.Report(new ScanProgress(text, percent));
+
         var installed = installs.Any(item => item.Installed);
         var copies = installs.Where(item => item.Installed).ToList();
         var first = copies.FirstOrDefault() ?? installs.FirstOrDefault();
         var installedBranch = first?.Branch ?? "";
         var installedCommit = first?.Commit ?? "";
+        Step("正在列出分支…", 8);
         var branches = await _tips.ListBranchesAsync(skill, nasUser, canReachRemote, cancellationToken)
             .ConfigureAwait(false);
-        var target = ResolveTarget(skill, editorVersion, selectedBranch, installedBranch, ref branches);
+        var hasHead = false;
+        if (first is not null && WorkspaceGit.HasRepo(first.Path))
+        {
+            Step("正在读取工作区 HEAD…", 18);
+            hasHead = await _workspaceGit.HasHeadAsync(first.Path, cancellationToken).ConfigureAwait(false);
+            if (hasHead)
+            {
+                installedCommit = await _workspaceGit.ReadHeadCommitAsync(first.Path, cancellationToken)
+                    .ConfigureAwait(false);
+                var gitBranch = await _workspaceGit.ReadCurrentBranchAsync(first.Path, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(gitBranch))
+                {
+                    installedBranch = gitBranch;
+                }
+            }
+            else
+            {
+                installedCommit = "";
+                installedBranch = "";
+            }
+        }
+
+        var target = ResolveTarget(
+            skill,
+            editorVersion,
+            hasHead ? null : selectedBranch,
+            hasHead ? installedBranch : "",
+            ref branches);
         var remoteCommit = "";
         if (canReachRemote && !string.IsNullOrWhiteSpace(target))
         {
+            Step("正在读取远端提交…", 32);
             remoteCommit = await _tips.RemoteCommitAsync(skill, target, nasUser, cancellationToken)
                 .ConfigureAwait(false);
         }
 
         if (installed && canReachRemote)
         {
+            Step("正在同步安装目录 Git…", 46);
             await PrepareReposAsync(skill, copies, target, nasUser, cancellationToken).ConfigureAwait(false);
         }
 
-        if (first is not null && WorkspaceGit.HasRepo(first.Path))
-        {
-            installedCommit = await FillGitValueAsync(
-                    "", () => _workspaceGit.ReadHeadCommitAsync(first.Path, cancellationToken))
-                .ConfigureAwait(false);
-            installedBranch = await FillGitValueAsync(
-                    "", () => _workspaceGit.ReadCurrentBranchAsync(first.Path, cancellationToken))
-                .ConfigureAwait(false);
-        }
-
         var cache = _tips.CacheDirectory(skill, string.IsNullOrWhiteSpace(target) ? installedBranch : target);
+        Step("正在对照文件树…", 72);
         var align = await _align.InspectAsync(
                 skill, workspacePath, copies, remoteCommit, target, cache, cancellationToken)
             .ConfigureAwait(false);
-        var compare = await ResolveCompareAsync(
-                skill, installedCommit, remoteCommit, cache, align, cancellationToken)
-            .ConfigureAwait(false);
-        var hasLocal = align.SnapshotChanges.Count > 0;
-        if (align.MatchesRemote)
+        var needsAttach = installed
+                          && WorkspaceRepo.CanAttach(skill)
+                          && first is not null
+                          && WorkspaceGit.HasRepo(first.Path)
+                          && !hasHead;
+        Step("正在比较提交…", 90);
+        var compare = needsAttach
+            ? CommitCompare.Unknown
+            : await ResolveCompareAsync(
+                    skill, installedCommit, remoteCommit, cache, align, cancellationToken)
+                .ConfigureAwait(false);
+        var gitChanges = hasHead && first is not null
+            ? await _workspaceGit.ReadWorkTreeChangesAsync(first.Path, cancellationToken).ConfigureAwait(false)
+            : [];
+        var hasLocal = gitChanges.Count > 0 || align.SnapshotChanges.Count > 0;
+        var sameBranch = !string.IsNullOrWhiteSpace(installedBranch)
+                         && !string.IsNullOrWhiteSpace(target)
+                         && installedBranch.Equals(target, StringComparison.OrdinalIgnoreCase);
+        if (align.MatchesRemote && hasHead && gitChanges.Count == 0)
         {
             hasLocal = false;
-            if (!string.IsNullOrWhiteSpace(remoteCommit))
+            if (sameBranch && !string.IsNullOrWhiteSpace(remoteCommit))
             {
                 installedCommit = remoteCommit;
-            }
-
-            if (!string.IsNullOrWhiteSpace(target))
-            {
-                installedBranch = target;
             }
         }
 
@@ -130,7 +165,9 @@ public sealed class SkillGit
                             && !string.IsNullOrWhiteSpace(target)
                             && !installedBranch.Equals(target, StringComparison.OrdinalIgnoreCase);
         var forbidden = IsForbiddenBranch(skill, editorVersion, target);
-        var state = SkillGitStatus.Decide(installed, hasLocal, compare.Relation, branchDiffers);
+        var state = needsAttach
+            ? SkillGitState.NeedsAttach
+            : SkillGitStatus.Decide(installed, hasLocal, compare.Relation, branchDiffers);
 
         return new SkillGitStatus
         {
@@ -141,8 +178,9 @@ public sealed class SkillGit
             InstalledBranch = installedBranch,
             TargetBranch = target,
             Branches = branches,
-            Changes = align.SnapshotChanges,
+            Changes = needsAttach ? [] : (gitChanges.Count > 0 ? gitChanges : align.SnapshotChanges),
             Forbidden = forbidden,
+            TreeMatchesRemote = align.MatchesRemote,
             Warning = forbidden ? "Unity 6 不能使用 master 上的 URP 14，请改选 urp-17.5。" : "",
             Message = SkillGitStatus.Describe(
                 state,
@@ -151,7 +189,7 @@ public sealed class SkillGit
                 installedBranch,
                 installedCommit,
                 remoteCommit,
-                align.SnapshotChanges.Count,
+                needsAttach ? 0 : (gitChanges.Count > 0 ? gitChanges.Count : align.SnapshotChanges.Count),
                 canReachRemote,
                 remoteCommit.Length > 0)
         };
@@ -175,9 +213,9 @@ public sealed class SkillGit
             return CommitCompare.Same;
         }
 
-        if (string.IsNullOrWhiteSpace(installedCommit) && align.ComparedAll)
+        if (string.IsNullOrWhiteSpace(installedCommit))
         {
-            return CommitCompare.Behind();
+            return CommitCompare.Unknown;
         }
 
         return await _compare.CompareAsync(skill, installedCommit, remoteCommit, cache, cancellationToken)
@@ -213,16 +251,6 @@ public sealed class SkillGit
             {
             }
         }
-    }
-
-    private static async Task<string> FillGitValueAsync(string current, Func<Task<string>> read)
-    {
-        if (!string.IsNullOrWhiteSpace(current))
-        {
-            return current;
-        }
-
-        return await read().ConfigureAwait(false);
     }
 
     private static string ResolveTarget(

@@ -44,9 +44,7 @@ public static class UnityWorkspace
             }
         }
 
-        return skill.Branches.FirstOrDefault(item =>
-                   item.Name.Equals("urp-17.5", StringComparison.OrdinalIgnoreCase))
-               ?? skill.Branches[0];
+        return skill.Branches[0];
     }
 
     public static void MergeManifest(string workspacePath, IReadOnlyDictionary<string, string> dependencies)

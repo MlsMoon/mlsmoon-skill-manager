@@ -14,13 +14,21 @@ public static class RoutingSkillInstall
         Action<string>? log)
     {
         var companion = MlsmoonSkillConfig.ToRoutingCompanion(plugin, config);
+        var pluginDest = ProjectCopy.ResolveDestination(workspacePath, plugin);
+        var source = RoutingSkillSource.PluginSourceDirectory(pluginDest, companion.Id);
+        var hasSource = RoutingSkillSource.Compare(source, "").SourceExists;
         foreach (var root in SkillRoots.Normalize(roots))
         {
             var dest = MlsmoonSkillConfig.ResolveInstallDirectory(workspacePath, root, companion.Id);
             var existed = Directory.Exists(dest);
             Directory.CreateDirectory(dest);
             var skillMd = Path.Combine(dest, "SKILL.md");
-            if (!File.Exists(skillMd))
+            if (hasSource)
+            {
+                RoutingSkillSource.CopyOverlay(source, dest);
+                log?.Invoke($"从源写入路由 Skill {companion.DisplayName} → {root}/skills/{Path.GetFileName(dest)}");
+            }
+            else if (!File.Exists(skillMd))
             {
                 File.WriteAllText(skillMd, Render(plugin, config, companion));
                 log?.Invoke($"写入路由 Skill {companion.DisplayName} → {root}/skills/{Path.GetFileName(dest)}");

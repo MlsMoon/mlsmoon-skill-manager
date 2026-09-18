@@ -6,6 +6,8 @@ namespace MlsmoonSkillManager.App.ViewModels;
 
 public sealed class SkillCatalogScan
 {
+    private const int QueuedAfterAccess = 36;
+
     private readonly IList<SkillRowViewModel> _rows;
     private readonly GhCli _gh;
     private readonly GitRemote _git;
@@ -21,7 +23,6 @@ public sealed class SkillCatalogScan
     private readonly Action _raiseUpdate;
     private readonly SkillCatalogMeta _meta;
     private CancellationTokenSource? _gitCts;
-    private ScanMeter? _meter;
 
     public SkillCatalogScan(
         IList<SkillRowViewModel> rows,
@@ -54,68 +55,21 @@ public sealed class SkillCatalogScan
         _meta = new SkillCatalogMeta(rows, gh, git, skillGit, nasUser, workspace);
     }
 
-    public async Task RefreshAccessAsync()
+    public async Task ScanAllAsync()
     {
         if (SkipLiveScan())
         {
             return;
         }
 
-        var rows = _rows.ToList();
-        var tops = rows.Where(item => !item.IsCompanion).ToList();
-        var inspect = _hasWorkspace() ? rows.Count : 0;
-        _meter = new ScanMeter(rows, 2 + tops.Count + inspect);
-        foreach (var row in rows)
+        var ct = BeginGitCts();
+        try
         {
-            row.Access = new RepoAccess { State = AccessState.Checking, Message = "正在检查权限…" };
-            row.MarkGitChecking();
+            await AccessAllAsync(ct).ConfigureAwait(true);
+            await InspectQueuedAsync(ct, continueProgress: true).ConfigureAwait(true);
         }
-
-        _meter.Show(null, "正在检查 GitHub 账号…");
-        var account = await _gh.GetAccountStatusAsync().ConfigureAwait(true);
-        _applyAccount(account);
-        _log(account.Detail);
-        _meter.Advance(null, "正在检查 GitHub 账号…");
-
-        var lanHost = rows.Select(item => item.Definition)
-            .FirstOrDefault(item => item.IsLan && !string.IsNullOrWhiteSpace(item.Host))
-            ?.Host;
-        if (string.IsNullOrWhiteSpace(lanHost))
+        catch (OperationCanceledException)
         {
-            _applyNoLan();
-            _log("未配置局域网条目。");
-            _meter.Advance(null, "未配置局域网");
-        }
-        else
-        {
-            _meter.Show(null, "正在探测局域网…");
-            var probe = await LanNetwork.ProbeAsync(lanHost).ConfigureAwait(true);
-            _applyLan(probe);
-            _log(probe.Detail);
-            _meter.Advance(null, "正在探测局域网…");
-        }
-
-        foreach (var row in tops)
-        {
-            _meter.Show(row, "正在检查权限…");
-            await CheckAccessAsync(row, account).ConfigureAwait(true);
-            _meter.Advance(row, "正在检查权限…");
-        }
-
-        foreach (var row in rows.Where(item => item.IsCompanion))
-        {
-            var parent = rows.FirstOrDefault(item =>
-                item.Definition.Id.Equals(row.Definition.ParentPluginId, StringComparison.OrdinalIgnoreCase));
-            row.Access = parent?.Access ?? new RepoAccess
-            {
-                State = AccessState.NoPermission,
-                Message = "所属 Plugin 当前无权限访问"
-            };
-        }
-
-        foreach (var row in rows)
-        {
-            await _meta.RefreshAsync(row, null, row.Access.CanInstall).ConfigureAwait(true);
         }
     }
 
@@ -126,41 +80,10 @@ public sealed class SkillCatalogScan
             return;
         }
 
-        _gitCts?.Cancel();
-        _gitCts = new CancellationTokenSource();
-        var ct = _gitCts.Token;
-        if (!_hasWorkspace())
-        {
-            foreach (var row in _rows)
-            {
-                row.ApplyGit(SkillGitStatus.Empty);
-            }
-
-            _raiseUpdate();
-            return;
-        }
-
-        foreach (var row in _rows)
-        {
-            row.MarkGitChecking();
-        }
-
-        if (_meter is null || _meter.Done >= _meter.Total)
-        {
-            _meter = new ScanMeter(_rows, _rows.Count);
-        }
-
-        _meter.Show(null, "正在对照 Git…");
+        var ct = BeginGitCts();
         try
         {
-            var editor = UnityWorkspace.ReadEditorVersion(_workspace());
-            foreach (var row in _rows.ToList())
-            {
-                ct.ThrowIfCancellationRequested();
-                _meter.Show(row, "正在对照 Git…");
-                await InspectCoreAsync(row, editor, ct).ConfigureAwait(true);
-                _meter.Advance(row, "正在对照 Git…");
-            }
+            await InspectQueuedAsync(ct, continueProgress: false).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {
@@ -175,11 +98,125 @@ public sealed class SkillCatalogScan
         }
 
         row.MarkGitChecking();
-        row.SetScan("正在对照 Git…", 20);
-        await InspectCoreAsync(row, null, CancellationToken.None).ConfigureAwait(true);
-        if (row.IsLoading)
+        if (row.Definition.IsRouting)
         {
-            row.SetScan("正在对照 Git…", 100);
+            await InspectRoutingAsync(row, CancellationToken.None, continueProgress: false)
+                .ConfigureAwait(true);
+            return;
+        }
+
+        await InspectCoreAsync(row, null, CancellationToken.None, continueProgress: false)
+            .ConfigureAwait(true);
+    }
+
+    private CancellationToken BeginGitCts()
+    {
+        _gitCts?.Cancel();
+        _gitCts = new CancellationTokenSource();
+        return _gitCts.Token;
+    }
+
+    private async Task AccessAllAsync(CancellationToken cancellationToken)
+    {
+        var rows = _rows.ToList();
+        var tops = rows.Where(item => !item.IsCompanion).ToList();
+        foreach (var row in rows)
+        {
+            if (!row.IsCompanion)
+            {
+                row.Access = new RepoAccess { State = AccessState.Checking, Message = "正在检查权限…" };
+            }
+
+            row.MarkGitChecking();
+            row.SetScan("排队扫描…", 0);
+        }
+
+        Caption(rows, "正在检查 GitHub 账号…", 8);
+        var account = await _gh.GetAccountStatusAsync().ConfigureAwait(true);
+        _applyAccount(account);
+        _log(account.Detail);
+
+        var lanHost = rows.Select(item => item.Definition)
+            .FirstOrDefault(item => item.IsLan && !string.IsNullOrWhiteSpace(item.Host))
+            ?.Host;
+        if (string.IsNullOrWhiteSpace(lanHost))
+        {
+            _applyNoLan();
+            _log("未配置局域网条目。");
+        }
+        else
+        {
+            Caption(rows, "正在探测局域网…", 16);
+            var probe = await LanNetwork.ProbeAsync(lanHost).ConfigureAwait(true);
+            _applyLan(probe);
+            _log(probe.Detail);
+        }
+
+        foreach (var row in tops)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Caption(rows, "排队扫描…", 0, except: row);
+            row.SetScan("正在检查权限…", 22);
+            var access = await CheckAccessAsync(row, account).ConfigureAwait(true);
+            row.SetScan("正在读取名称…", 30);
+            await _meta.RefreshAsync(row, null, access.CanInstall, cancellationToken).ConfigureAwait(true);
+            row.Access = access;
+            row.SetScan("排队扫描…", QueuedAfterAccess);
+        }
+
+        foreach (var row in rows.Where(item => item.IsCompanion))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var parent = ParentOf(row);
+            row.Access = parent?.Access ?? new RepoAccess
+            {
+                State = AccessState.NoPermission,
+                Message = "所属 Plugin 当前无权限访问"
+            };
+            await _meta.RefreshAsync(row, null, row.Access.CanInstall, cancellationToken).ConfigureAwait(true);
+            row.SetScan("排队扫描…", QueuedAfterAccess);
+        }
+    }
+
+    private async Task InspectQueuedAsync(CancellationToken cancellationToken, bool continueProgress)
+    {
+        if (!_hasWorkspace())
+        {
+            foreach (var row in _rows)
+            {
+                row.ApplyGit(SkillGitStatus.Empty);
+            }
+
+            _raiseUpdate();
+            return;
+        }
+
+        var pending = _rows.ToList();
+        var queued = continueProgress ? QueuedAfterAccess : 0;
+        if (!continueProgress)
+        {
+            foreach (var row in pending)
+            {
+                row.MarkGitChecking();
+                row.SetScan("排队扫描…", 0);
+            }
+        }
+
+        var editor = UnityWorkspace.ReadEditorVersion(_workspace());
+        var routing = pending.Where(item => item.Definition.IsRouting).ToList();
+        var gitRows = pending.Where(item => !item.Definition.IsRouting).ToList();
+        foreach (var row in routing)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Caption(pending, "排队扫描…", queued, except: row);
+            await InspectRoutingAsync(row, cancellationToken, continueProgress).ConfigureAwait(true);
+        }
+
+        foreach (var row in gitRows)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Caption(pending, "排队扫描…", queued, except: row);
+            await InspectCoreAsync(row, editor, cancellationToken, continueProgress).ConfigureAwait(true);
         }
     }
 
@@ -199,49 +236,84 @@ public sealed class SkillCatalogScan
         return true;
     }
 
-    private async Task CheckAccessAsync(SkillRowViewModel row, GhAccountStatus account)
+    private async Task<RepoAccess> CheckAccessAsync(SkillRowViewModel row, GhAccountStatus account)
     {
         if (row.Definition.IsLan)
         {
-            row.Access = await _git.CheckLanAccessAsync(row.Definition, _nasUser()).ConfigureAwait(true);
-            _applyNas(row.Access);
-            if (!row.Access.CanInstall)
+            var lan = await _git.CheckLanAccessAsync(row.Definition, _nasUser()).ConfigureAwait(true);
+            _applyNas(lan);
+            if (!lan.CanInstall)
             {
-                _log($"{row.Name}: {row.Access.Message}");
+                _log($"{row.Name}: {lan.Message}");
             }
 
-            return;
+            return lan;
         }
 
         if (!RepoUrl.TryParse(row.Definition.Repo, out var repo))
         {
-            row.Access = new RepoAccess
+            return new RepoAccess
             {
                 State = AccessState.NoPermission,
                 Message = "当前无权限访问"
             };
-            return;
         }
 
-        row.Access = await _gh.CheckRepoAccessAsync(repo, account).ConfigureAwait(true);
-        if (row.Access.State == AccessState.NoPermission)
+        var access = await _gh.CheckRepoAccessAsync(repo, account).ConfigureAwait(true);
+        if (access.State == AccessState.NoPermission)
         {
             _log($"{row.Name}: 当前无权限访问");
         }
+
+        return access;
     }
 
-    private async Task InspectCoreAsync(SkillRowViewModel row, string? editor, CancellationToken cancellationToken)
+    private async Task InspectRoutingAsync(
+        SkillRowViewModel row,
+        CancellationToken cancellationToken,
+        bool continueProgress)
+    {
+        row.SetScan("对照路由源…", continueProgress ? 55 : 40);
+        var parent = ParentOf(row);
+        var align = parent is null
+            ? new RoutingSkillAlign()
+            : await Task.Run(
+                    () => RoutingSkillSource.Inspect(
+                        parent.Definition,
+                        row.Definition,
+                        _workspace(),
+                        SkillRoots.DetectableRoots),
+                    cancellationToken)
+                .ConfigureAwait(true);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        row.ApplyRouting(align);
+        await _meta.RefreshAsync(row, null, row.Access.CanInstall, cancellationToken).ConfigureAwait(true);
+        _raiseUpdate();
+    }
+
+    private async Task InspectCoreAsync(
+        SkillRowViewModel row,
+        string? editor,
+        CancellationToken cancellationToken,
+        bool continueProgress)
     {
         editor ??= UnityWorkspace.ReadEditorVersion(_workspace());
+        var progress = new Progress<ScanProgress>(step =>
+            row.SetScan(step.Text, continueProgress ? 40 + step.Percent * 60 / 100 : step.Percent));
         var status = await _skillGit.InspectAsync(
                 row.Definition,
                 _workspace(),
                 row.Installs,
-                row.SelectedBranch,
+                row.HasUserPickedBranch ? row.SelectedBranch : null,
                 _nasUser(),
                 editor,
                 row.Access.CanInstall,
-                cancellationToken)
+                cancellationToken,
+                progress)
             .ConfigureAwait(true);
         if (cancellationToken.IsCancellationRequested)
         {
@@ -253,41 +325,25 @@ public sealed class SkillCatalogScan
             .ConfigureAwait(true);
         _raiseUpdate();
     }
-}
 
-internal sealed class ScanMeter
-{
-    private readonly IReadOnlyList<SkillRowViewModel> _rows;
+    private SkillRowViewModel? ParentOf(SkillRowViewModel row) =>
+        _rows.FirstOrDefault(item =>
+            item.Definition.Id.Equals(row.Definition.ParentPluginId, StringComparison.OrdinalIgnoreCase));
 
-    public ScanMeter(IEnumerable<SkillRowViewModel> rows, int total)
+    private static void Caption(
+        IEnumerable<SkillRowViewModel> rows,
+        string text,
+        int percent,
+        SkillRowViewModel? except = null)
     {
-        _rows = rows as IReadOnlyList<SkillRowViewModel> ?? rows.ToList();
-        Total = Math.Max(1, total);
-    }
-
-    public int Total { get; }
-    public int Done { get; private set; }
-    public int Percent => (int)Math.Clamp(Math.Round(100.0 * Done / Total), 0, 100);
-
-    public void Show(SkillRowViewModel? current, string caption) => Paint(current, caption);
-
-    public void Advance(SkillRowViewModel? current, string caption)
-    {
-        Done = Math.Min(Total, Done + 1);
-        Paint(current, caption);
-    }
-
-    private void Paint(SkillRowViewModel? current, string caption)
-    {
-        foreach (var row in _rows)
+        foreach (var row in rows)
         {
-            if (!row.IsLoading)
+            if (!row.IsLoading || ReferenceEquals(row, except))
             {
                 continue;
             }
 
-            var text = current is null || ReferenceEquals(row, current) ? caption : "排队扫描…";
-            row.SetScan(text, Percent);
+            row.SetScan(text, percent);
         }
     }
 }

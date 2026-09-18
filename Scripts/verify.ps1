@@ -46,6 +46,61 @@ if ($tags -contains "build") {
     Invoke-Step "build" {
         dotnet build (Join-Path $root "MlsmoonSkillManager.sln") --nologo
         if ($LASTEXITCODE -ne 0) { throw "build failed" }
+
+        $exe = Join-Path $root "src\MlsmoonSkillManager.App\bin\Debug\net8.0-windows\MlsmoonSkillManager.exe"
+        Assert-True (Test-Path $exe) "build produced no exe: $exe"
+
+        $temp = Join-Path $env:TEMP ("mlsmoon-boot-" + [guid]::NewGuid().ToString("N"))
+        $config = Join-Path $temp "config"
+        New-Item -ItemType Directory -Path $config | Out-Null
+        $ready = Join-Path $config "ui-ready.log"
+        $oldConfig = $env:MLSMOON_CONFIG_DIR
+        $oldCache = $env:MLSMOON_CACHE_DIR
+        $env:MLSMOON_CONFIG_DIR = $config
+        $env:MLSMOON_CACHE_DIR = Join-Path $temp "cache"
+        $proc = $null
+        try {
+            $proc = Start-Process -FilePath $exe -ArgumentList "--dev", "--ui-test" -PassThru -WindowStyle Hidden -WorkingDirectory $root
+            $deadline = (Get-Date).AddSeconds(40)
+            while ((Get-Date) -lt $deadline) {
+                if (Test-Path $ready) {
+                    break
+                }
+
+                if ($proc.HasExited) {
+                    throw "window boot failed: process exited $($proc.ExitCode) before ui-ready.log"
+                }
+
+                Start-Sleep -Milliseconds 200
+            }
+
+            Assert-True (Test-Path $ready) "window boot failed: ui-ready.log missing"
+            Write-Host "boot ok: ui-ready.log"
+        }
+        finally {
+            if ($null -eq $oldConfig) {
+                Remove-Item Env:MLSMOON_CONFIG_DIR -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:MLSMOON_CONFIG_DIR = $oldConfig
+            }
+
+            if ($null -eq $oldCache) {
+                Remove-Item Env:MLSMOON_CACHE_DIR -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:MLSMOON_CACHE_DIR = $oldCache
+            }
+
+            if ($null -ne $proc -and -not $proc.HasExited) {
+                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                try { $null = $proc.WaitForExit(5000) } catch { }
+            }
+
+            if (Test-Path $temp) {
+                Remove-Item -Recurse -Force $temp -ErrorAction SilentlyContinue
+            }
+        }
     }
 }
 

@@ -16,3 +16,7 @@ catalog/skills.override.json
 .DS_Store
 Thumbs.db
 .htybox/
+.claude/
+.grok/
+/CLAUDE.md
+/GROK.md

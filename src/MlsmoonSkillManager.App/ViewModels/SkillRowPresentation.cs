@@ -52,18 +52,20 @@ public static class SkillRowPresentation
         _ => BadgeAppearance.Danger
     };
 
-    public static string LocalChanges(SkillGitStatus git)
+    public static string LocalChanges(SkillGitStatus git) => LocalChanges(git.Changes);
+
+    public static string LocalChanges(IReadOnlyList<GitChange> changes)
     {
-        if (git.Changes.Count == 0)
+        if (changes.Count == 0)
         {
             return "";
         }
 
-        var lines = git.Changes.Take(8).Select(item => item.Label);
+        var lines = changes.Take(8).Select(item => item.Label);
         var text = string.Join(Environment.NewLine, lines);
-        if (git.Changes.Count > 8)
+        if (changes.Count > 8)
         {
-            text += Environment.NewLine + $"还有 {git.Changes.Count - 8} 个文件";
+            text += Environment.NewLine + $"还有 {changes.Count - 8} 个文件";
         }
 
         return text;
@@ -88,7 +90,7 @@ public static class SkillRowPresentation
     public static string ParentHint(SkillDefinition definition) =>
         definition.IsCompanion && !string.IsNullOrWhiteSpace(definition.ParentPluginName)
             ? definition.IsRouting
-                ? $"属于 {definition.ParentPluginName} 的路由 Skill，装完后才会出现。"
+                ? $"属于 {definition.ParentPluginName} 的路由 Skill。真源在插件 `.mlsmoon/project-skill/{definition.Id}/`，和 Git 脱钩；装完后才会出现。"
                 : $"属于 {definition.ParentPluginName}，装完后才会出现。"
             : "";
 

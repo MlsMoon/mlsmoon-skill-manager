@@ -291,6 +291,7 @@ public class CatalogAndInstallTests
                     InstallPath = "Assets/Plugins/SpineGpuSkinning"
                 },
                 MlsmoonSkillConfig.Read(dest)!);
+            Assert.Equal(".mlsmoon/project-skill/spine-gpu-skinning-skill", routing.SourcePath);
             var status = Assert.Single(new WorkspaceScanner().InspectInstalls(workspace, routing, [".agents"]));
             Assert.True(status.Installed);
             Assert.Equal(Path.Combine(workspace, ".agents", "skills", "renamed-router"), status.Path);
@@ -384,6 +385,107 @@ public class CatalogAndInstallTests
             Assert.True(status.Installed);
             Assert.True(status.Managed);
             Assert.Equal("deadbeef", status.Commit);
+        }
+        finally
+        {
+            TryDelete(workspace);
+        }
+    }
+
+    [Fact]
+    public void RoutingSkillSource_CopiesAndDiffsAgainstWorkspace()
+    {
+        var workspace = CreateTempDir();
+        try
+        {
+            var plugin = new SkillDefinition
+            {
+                Id = "spine-gpu-skinning",
+                Name = "SpineGpuSkinning",
+                Kind = ToolKind.Plugin,
+                InstallName = "SpineGpuSkinning",
+                InstallPath = "Assets/Plugins/SpineGpuSkinning"
+            };
+            var pluginDest = Path.Combine(workspace, "Assets", "Plugins", "SpineGpuSkinning");
+            var source = RoutingSkillSource.PluginSourceDirectory(pluginDest, "spine-gpu-skinning-skill");
+            Directory.CreateDirectory(Path.Combine(source, "references"));
+            File.WriteAllText(Path.Combine(source, "SKILL.md"), "from-source");
+            File.WriteAllText(Path.Combine(source, "references", "a.md"), "ref");
+
+            var dest = Path.Combine(workspace, ".agents", "skills", "spine-gpu-skinning-skill");
+            Directory.CreateDirectory(dest);
+            File.WriteAllText(Path.Combine(dest, "SKILL.md"), "workspace");
+            File.WriteAllText(Path.Combine(dest, "extra.md"), "keep");
+            File.WriteAllText(Path.Combine(dest, SkillInstaller.MarkerFileName), "{}");
+            MlsmoonSkillConfig.Write(dest, new MlsmoonSkillFile
+            {
+                Id = "spine-gpu-skinning-skill",
+                Kind = "routing",
+                ParentId = plugin.Id
+            });
+
+            var routing = MlsmoonSkillConfig.ToRoutingCompanion(
+                plugin,
+                new MlsmoonSkillFile
+                {
+                    Id = "spine-gpu-skinning-skill",
+                    Kind = "routing",
+                    ParentId = plugin.Id
+                });
+            Assert.Equal(".mlsmoon/project-skill/spine-gpu-skinning-skill", routing.SourcePath);
+
+            var align = RoutingSkillSource.Inspect(plugin, routing, workspace, [".agents"]);
+            Assert.True(align.SourceExists);
+            Assert.True(align.DestExists);
+            Assert.Contains(align.Changes, item => item.Path == "SKILL.md" && item.Kind == GitChangeKind.Modified);
+            Assert.Contains(align.Changes, item => item.Path == "extra.md" && item.Kind == GitChangeKind.Added);
+            Assert.Contains(align.Changes, item => item.Path == "references/a.md" && item.Kind == GitChangeKind.Deleted);
+            Assert.DoesNotContain(align.Changes, item => item.Path.Contains(".mlsmoon", StringComparison.OrdinalIgnoreCase));
+
+            RoutingSkillSource.CopyFromSource(plugin, routing, workspace, [".agents"], null);
+            Assert.Equal("from-source", File.ReadAllText(Path.Combine(dest, "SKILL.md")));
+            Assert.Equal("keep", File.ReadAllText(Path.Combine(dest, "extra.md")));
+            Assert.True(File.Exists(Path.Combine(dest, "references", "a.md")));
+            Assert.True(File.Exists(Path.Combine(dest, SkillInstaller.MarkerFileName)));
+            Assert.True(File.Exists(MlsmoonSkillConfig.FilePath(dest)));
+
+            File.WriteAllText(Path.Combine(dest, "SKILL.md"), "edited");
+            var afterToSource = RoutingSkillSource.CopyToSource(plugin, routing, workspace, [".agents"], null);
+            Assert.Equal("edited", File.ReadAllText(Path.Combine(source, "SKILL.md")));
+            Assert.True(File.Exists(Path.Combine(source, "extra.md")));
+            Assert.False(Directory.Exists(Path.Combine(source, MlsmoonSkillConfig.FolderName)));
+            Assert.False(File.Exists(Path.Combine(source, SkillInstaller.MarkerFileName)));
+            Assert.Empty(afterToSource.Changes);
+
+            File.WriteAllText(Path.Combine(source, "SKILL.md"), "source-v2");
+            RoutingSkillInstall.Ensure(
+                plugin,
+                new MlsmoonSkillFile
+                {
+                    Id = "spine-gpu-skinning-skill",
+                    Kind = "routing",
+                    ParentId = plugin.Id
+                },
+                workspace,
+                [".agents"],
+                new InstallMarker { Id = plugin.Id, Repo = plugin.Repo, Commit = "abc", Branch = "main" },
+                null);
+            Assert.Equal("source-v2", File.ReadAllText(Path.Combine(dest, "SKILL.md")));
+
+            RoutingSkillInstall.Ensure(
+                plugin,
+                new MlsmoonSkillFile
+                {
+                    Id = "empty-router",
+                    Kind = "routing",
+                    ParentId = plugin.Id
+                },
+                workspace,
+                [".agents"],
+                new InstallMarker { Id = plugin.Id, Commit = "abc" },
+                null);
+            var generated = File.ReadAllText(Path.Combine(workspace, ".agents", "skills", "empty-router", "SKILL.md"));
+            Assert.Contains("本文件由 Moon Game Dev Tool Manager", generated);
         }
         finally
         {

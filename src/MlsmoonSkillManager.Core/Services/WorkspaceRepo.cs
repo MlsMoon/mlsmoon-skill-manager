@@ -71,6 +71,36 @@ public sealed class WorkspaceRepo
         await AlignHeadIfMatchAsync(directory, branch, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task AdoptRemoteAsync(
+        string directory,
+        string originUrl,
+        string branch,
+        Action<string>? log,
+        IProgress<ScanProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(originUrl) || string.IsNullOrWhiteSpace(branch))
+        {
+            throw new InvalidOperationException("没有远端地址或分支，无法初始化 Git。");
+        }
+
+        if (!Directory.Exists(directory))
+        {
+            throw new InvalidOperationException("安装目录不存在，无法初始化 Git。");
+        }
+
+        log?.Invoke("正在把安装目录接到远端分支（不走 checkout，以免未跟踪文件挡住）。");
+        progress?.Report(new ScanProgress("正在接上远端…", 12));
+        await EnsureAttachedAsync(directory, originUrl, branch, log, cancellationToken, fetch: false)
+            .ConfigureAwait(false);
+        progress?.Report(new ScanProgress("正在从远端拉取…", 28));
+        await FetchAsync(directory, branch, cancellationToken).ConfigureAwait(false);
+        progress?.Report(new ScanProgress("正在按远端覆盖同名文件…", 72));
+        await PointHeadAtOriginAsync(directory, branch, cancellationToken).ConfigureAwait(false);
+        progress?.Report(new ScanProgress("已把 HEAD 接到 origin/" + branch, 100));
+        log?.Invoke("已把 HEAD 接到 origin/" + branch + "。");
+    }
+
     public async Task FetchAsync(string directory, string branch, CancellationToken cancellationToken = default)
     {
         if (!WorkspaceGit.HasRepo(directory) || string.IsNullOrWhiteSpace(branch))
@@ -96,6 +126,21 @@ public sealed class WorkspaceRepo
         }
 
         await FetchAsync(directory, branch, cancellationToken).ConfigureAwait(false);
+        if (!await _workspaceGit.HasHeadAsync(directory, cancellationToken).ConfigureAwait(false))
+        {
+            await PointHeadAtOriginAsync(directory, branch, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        var current = await _workspaceGit.ReadCurrentBranchAsync(directory, cancellationToken)
+            .ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(current)
+            && !current.Equals(branch, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"当前在分支 {current}，不能对 {branch} 做快进。请先切换分支。");
+        }
+
         var upstream = await UpstreamAsync(directory, branch, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(upstream))
         {
@@ -105,14 +150,6 @@ public sealed class WorkspaceRepo
         if (await _workspaceGit.MatchesCommitAsync(directory, upstream, cancellationToken).ConfigureAwait(false) == true)
         {
             await CheckoutBranchAsync(directory, branch, upstream, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        var head = await _workspaceGit.ReadHeadCommitAsync(directory, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(head))
-        {
-            await RunGitAsync(directory, ["checkout", "-f", "-B", branch, upstream], cancellationToken, required: true)
-                .ConfigureAwait(false);
             return;
         }
 
@@ -146,12 +183,74 @@ public sealed class WorkspaceRepo
             .All(path => MarkerNames.Contains(Path.GetFileName(path), StringComparer.OrdinalIgnoreCase));
     }
 
+    public async Task SwitchBranchAsync(
+        string directory,
+        string branch,
+        Action<string>? log,
+        CancellationToken cancellationToken = default)
+    {
+        if (!WorkspaceGit.HasRepo(directory) || string.IsNullOrWhiteSpace(branch))
+        {
+            throw new InvalidOperationException("安装目录还不是 git 仓库，无法切换分支。");
+        }
+
+        var current = await _workspaceGit.ReadCurrentBranchAsync(directory, cancellationToken)
+            .ConfigureAwait(false);
+        if (current.Equals(branch, StringComparison.OrdinalIgnoreCase))
+        {
+            log?.Invoke("已经在分支 " + branch + "。");
+            return;
+        }
+
+        if (!await IsCleanAsync(directory, cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("工作区有本地修改，不能切换分支。请在安装目录里手动处理。");
+        }
+
+        await FetchAsync(directory, branch, cancellationToken).ConfigureAwait(false);
+        var localRef = "refs/heads/" + branch;
+        var remoteRef = "origin/" + branch;
+        if (await _workspaceGit.HasRefAsync(directory, localRef, cancellationToken).ConfigureAwait(false))
+        {
+            log?.Invoke("正在切换到本地分支 " + branch + "。");
+            await RunGitAsync(directory, ["checkout", branch], cancellationToken, required: true)
+                .ConfigureAwait(false);
+            return;
+        }
+
+        if (!await _workspaceGit.HasRefAsync(directory, remoteRef, cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("没有远端分支 origin/" + branch + "，无法切换。");
+        }
+
+        log?.Invoke("正在创建并切换到 " + branch + "（跟踪 origin/" + branch + "）。");
+        await RunGitAsync(
+                directory,
+                ["checkout", "--track", remoteRef],
+                cancellationToken,
+                required: true)
+            .ConfigureAwait(false);
+    }
+
     public async Task AlignHeadIfMatchAsync(
         string directory,
         string branch,
         CancellationToken cancellationToken = default)
     {
         if (!WorkspaceGit.HasRepo(directory) || string.IsNullOrWhiteSpace(branch))
+        {
+            return;
+        }
+
+        if (!await _workspaceGit.HasHeadAsync(directory, cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        var current = await _workspaceGit.ReadCurrentBranchAsync(directory, cancellationToken)
+            .ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(current)
+            || !current.Equals(branch, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -267,6 +366,30 @@ public sealed class WorkspaceRepo
         var fetchHead = await RunGitAsync(directory, ["rev-parse", "--verify", "FETCH_HEAD"], cancellationToken)
             .ConfigureAwait(false);
         return fetchHead.Success ? "FETCH_HEAD" : "";
+    }
+
+    private async Task PointHeadAtOriginAsync(
+        string directory,
+        string branch,
+        CancellationToken cancellationToken)
+    {
+        var origin = "origin/" + branch;
+        var sha = await RunGitAsync(directory, ["rev-parse", "--verify", origin], cancellationToken)
+            .ConfigureAwait(false);
+        if (!sha.Success)
+        {
+            throw new InvalidOperationException("远端还没有 " + origin + "，无法初始化 Git。");
+        }
+
+        var commit = sha.StdOut.Trim();
+        await RunGitAsync(directory, ["update-ref", "refs/heads/" + branch, commit], cancellationToken, required: true)
+            .ConfigureAwait(false);
+        await RunGitAsync(directory, ["symbolic-ref", "HEAD", "refs/heads/" + branch], cancellationToken, required: true)
+            .ConfigureAwait(false);
+        await RunGitAsync(directory, ["reset", "--hard"], cancellationToken, required: true)
+            .ConfigureAwait(false);
+        await RunGitAsync(directory, ["branch", "-u", origin, branch], cancellationToken, required: true)
+            .ConfigureAwait(false);
     }
 
     private async Task CheckoutBranchAsync(

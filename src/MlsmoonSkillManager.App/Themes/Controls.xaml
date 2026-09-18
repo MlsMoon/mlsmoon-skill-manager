@@ -1149,7 +1149,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0" ClipToBounds="True">
                                 <DockPanel>
                                     <ContentPresenter Content="{TemplateBinding Badge}"
                                                       Margin="0,0,6,0"
@@ -1172,8 +1172,10 @@
                                 <ContentPresenter Content="{TemplateBinding Content}" Margin="0,2,0,0"/>
                             </StackPanel>
                             <ContentPresenter Grid.Column="1"
+                                              Panel.ZIndex="1"
                                               VerticalAlignment="Top"
-                                              Content="{TemplateBinding Actions}"/>
+                                              Content="{TemplateBinding Actions}"
+                                              DataContext="{Binding DataContext, RelativeSource={RelativeSource TemplatedParent}}"/>
                         </Grid>
                         </Grid>
                     </Border>
@@ -1463,6 +1465,7 @@
                                             Width="28"
                                             Height="28"
                                             Content="&#xE8BB;"
+                                            IsEnabled="{TemplateBinding AllowDismiss}"
                                             ToolTip="关闭"/>
                                     <TextBlock FontSize="15"
                                                FontWeight="SemiBold"
@@ -1477,10 +1480,12 @@
                                     <Button x:Name="PART_Secondary"
                                             Style="{StaticResource GhostButton}"
                                             Content="{TemplateBinding SecondaryText}"
+                                            Command="{TemplateBinding SecondaryCommand}"
                                             Visibility="{Binding SecondaryText, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource VisibleIfPresent}}"/>
                                     <Button x:Name="PART_Primary" AutomationProperties.AutomationId="DialogPrimary"
                                             Style="{StaticResource PrimaryButton}"
                                             Margin="0"
+                                            Command="{TemplateBinding PrimaryCommand}"
                                             Content="{TemplateBinding PrimaryText}"/>
                                 </StackPanel>
                                 <ContentPresenter Content="{TemplateBinding Content}"/>

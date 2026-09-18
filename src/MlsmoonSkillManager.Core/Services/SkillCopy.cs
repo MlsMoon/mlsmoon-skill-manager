@@ -9,8 +9,16 @@ public static class SkillCopy
         ".git", ".github", ".vs", "bin", "obj", ".idea"
     };
 
-    public static bool HasGitRepo(string directory) =>
-        !string.IsNullOrWhiteSpace(directory) && Directory.Exists(Path.Combine(directory, ".git"));
+    public static bool HasGitRepo(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        var git = Path.Combine(directory, ".git");
+        return Directory.Exists(git) || File.Exists(git);
+    }
 
     public static void Replace(string source, string dest, ISet<string>? extraSkip = null, bool includeGit = false)
     {

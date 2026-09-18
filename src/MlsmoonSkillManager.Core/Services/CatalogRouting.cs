@@ -35,6 +35,7 @@ public static class CatalogRouting
                 existing.ParentPluginId = parent.Id;
                 existing.ParentPluginName = parent.DisplayName;
                 existing.InstallName = string.IsNullOrWhiteSpace(existing.InstallName) ? routing.Id : existing.InstallName;
+                existing.SourcePath = routing.SourcePath;
                 if (string.IsNullOrWhiteSpace(existing.Repo))
                 {
                     existing.Repo = parent.Repo;

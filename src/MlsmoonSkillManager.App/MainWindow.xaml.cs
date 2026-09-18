@@ -54,6 +54,27 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (vm.IsGitActionOpen)
+        {
+            vm.CloseGitActionCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (vm.IsBranchSwitchOpen)
+        {
+            vm.CloseBranchSwitchCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (vm.IsInitGitOpen)
+        {
+            vm.CloseInitGitCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         if (vm.IsSettingsOpen)
         {
             vm.CloseSettingsCommand.Execute(null);

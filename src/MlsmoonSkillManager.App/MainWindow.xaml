@@ -38,8 +38,18 @@
             <ui:TitleBar.Extra>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                    <ui:Badge Appearance="Dev" Content="DEV" Margin="0,0,8,0"
+                    <ui:Badge Appearance="Dev" Content="DEV" Margin="0,0,6,0"
                               Visibility="{Binding IsDev, Converter={StaticResource VisibleIfTrue}}"/>
+                    <Button Style="{StaticResource GhostButton}"
+                            Content="重启"
+                            Padding="8,4"
+                            MinWidth="0"
+                            Margin="0,0,8,0"
+                            ToolTip="重新编译并启动 DEV（rundev）"
+                            AutomationProperties.Name="重启"
+                            AutomationProperties.AutomationId="RestartDev"
+                            Command="{Binding RestartDevCommand}"
+                            Visibility="{Binding ShowDevRestart, Converter={StaticResource VisibleIfTrue}}"/>
                     <TextBlock Style="{StaticResource Caption}"
                                VerticalAlignment="Center"
                                Margin="0,0,4,0"
@@ -194,20 +204,48 @@
                                             <StackPanel Orientation="Horizontal"
                                                         Visibility="{Binding DataContext.HasOpenWorkspace, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleIfTrue}}">
                                                 <Button Style="{StaticResource PrimaryButton}" Content="安装"
-                                                        IsEnabled="{Binding Access.CanInstall}"
-                                                        Visibility="{Binding ShowInstall, Converter={StaticResource VisibleIfTrue}}"
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
                                                         Command="{Binding DataContext.InstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button Style="{StaticResource GitDirButton}" Content="{Binding PullLabel}" IsEnabled="{Binding CanPull}" Command="{Binding DataContext.PullCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <Button Style="{StaticResource GitDirButton}" Content="{Binding PushLabel}" IsEnabled="{Binding CanPush}" Command="{Binding DataContext.PushCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                                        IsEnabled="{Binding Access.CanInstall}"
+                                                        Visibility="{Binding ShowInstall, Converter={StaticResource VisibleIfTrue}}"/>
+                                                <Button Style="{StaticResource PrimaryButton}" Content="初始化 Git"
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
+                                                        Command="{Binding DataContext.InitGitCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        IsEnabled="{Binding CanInitGit}"
+                                                        Visibility="{Binding ShowInitGit, Converter={StaticResource VisibleIfTrue}}"/>
+                                                <Button Style="{StaticResource GitDirButton}" Content="{Binding PullLabel}"
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
+                                                        Command="{Binding DataContext.PullCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        IsEnabled="{Binding CanPull}"
+                                                        Visibility="{Binding ShowGitActions, Converter={StaticResource VisibleIfTrue}}"/>
+                                                <Button Style="{StaticResource GitDirButton}" Content="{Binding CommitLabel}"
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
+                                                        Command="{Binding DataContext.CommitCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        IsEnabled="{Binding CanCommit}"
+                                                        Visibility="{Binding ShowGitActions, Converter={StaticResource VisibleIfTrue}}"/>
+                                                <Button Style="{StaticResource GitDirButton}" Content="{Binding PushLabel}"
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
+                                                        Command="{Binding DataContext.PushCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        IsEnabled="{Binding CanPush}"
+                                                        Visibility="{Binding ShowGitActions, Converter={StaticResource VisibleIfTrue}}"/>
+                                                <Button Style="{StaticResource GitDirButton}" Content="从源同步"
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
+                                                        Command="{Binding DataContext.SyncFromSourceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        IsEnabled="{Binding CanSyncFromSource}"
+                                                        Visibility="{Binding ShowSourceSync, Converter={StaticResource VisibleIfTrue}}"/>
+                                                <Button Style="{StaticResource GitDirButton}" Content="同步到源"
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
+                                                        Command="{Binding DataContext.SyncToSourceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        IsEnabled="{Binding CanSyncToSource}"
+                                                        Visibility="{Binding ShowSourceSync, Converter={StaticResource VisibleIfTrue}}"/>
                                                 <Button Style="{StaticResource GhostButton}" Content="打开目录"
                                                         AutomationProperties.Name="打开目录"
                                                         AutomationProperties.AutomationId="{Binding Name, StringFormat=OpenInstallFolder-{0}}"
                                                         Visibility="{Binding ShowOpenFolder, Converter={StaticResource VisibleIfTrue}}"
                                                         Command="{Binding OpenFolderCommand}"/>
                                                 <Button Style="{StaticResource DangerButton}" Content="卸载"
-                                                        Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"/>
+                                                        CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ui:ItemCard}}"
+                                                        Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                             </StackPanel>
                                         </ui:ItemCard.Actions>
                                         <StackPanel>
@@ -220,6 +258,8 @@
                                                            Text="分支"/>
                                                 <ComboBox ItemsSource="{Binding Branches}"
                                                           SelectedItem="{Binding SelectedBranch, Mode=TwoWay}"
+                                                          IsSynchronizedWithCurrentItem="False"
+                                                          IsEnabled="{Binding CanChangeBranch}"
                                                           HorizontalAlignment="Left"/>
                                             </DockPanel>
                                             <TextBlock Margin="0,6,0,0"
@@ -231,6 +271,10 @@
                                                             Text="{Binding GitStatusText}"
                                                             Tone="{Binding GitStatusTone}"
                                                             Visibility="{Binding ShowGitStatus, Converter={StaticResource VisibleIfTrue}}"/>
+                                            <ui:StatusLabel Margin="0,6,0,0"
+                                                            Text="{Binding SourceStatusText}"
+                                                            Tone="{Binding SourceStatusTone}"
+                                                            Visibility="{Binding ShowSourceStatus, Converter={StaticResource VisibleIfTrue}}"/>
                                             <TextBlock Margin="0,6,0,0"
                                                        FontFamily="Cascadia Mono, Consolas, monospace"
                                                        FontSize="12"
@@ -379,17 +423,17 @@
                             <ui:FieldRow Header="写入" LabelWidth="80" Margin="0">
                                 <StackPanel>
                                     <CheckBox IsChecked="{Binding AllowGitPush, Mode=TwoWay}"
-                                              Content="允许 Push（把本机提交推到远端）"
+                                              Content="允许 Push（卡片 ↑ Push 可把本机提交推到远端）"
                                               Margin="0,0,0,6"/>
                                     <CheckBox IsChecked="{Binding AllowGitCommit, Mode=TwoWay}"
-                                              Content="允许 Commit（↑ Push 可先提交工作区改动）"
+                                              Content="允许 Commit（卡片 Commit 可提交工作区改动）"
                                               Margin="0"/>
                                 </StackPanel>
                             </ui:FieldRow>
                             <TextBlock Style="{StaticResource Caption}"
                                        Margin="0,6,0,8"
                                        TextWrapping="Wrap"
-                                       Text="NAS 用户名是 ssh://后面 @ 前面那段，不是 Windows 用户名。密码只进 Windows 凭据管理器，不写 settings.json。登录后安装 / Pull / Push 自动带凭据。↑ Push 和 Commit 默认关闭，需在上面打开。"/>
+                                       Text="NAS 用户名是 ssh://后面 @ 前面那段，不是 Windows 用户名。密码只进 Windows 凭据管理器，不写 settings.json。登录后安装 / Pull / Push 自动带凭据。↑ Push 和 Commit 默认关闭，需在上面打开。Commit 只提交，不会顺手 Push。"/>
                             <Button Style="{StaticResource PrimaryButton}"
                                     Content="重新检查连接"
                                     HorizontalAlignment="Left"
@@ -429,7 +473,7 @@
                             </StackPanel>
                             <StackPanel Margin="0,8,0,0"
                                         Visibility="{Binding IsDownloadingUpdate, Converter={StaticResource VisibleOrHidden}}">
-                                <ProgressBar Value="{Binding UpdateProgress}"
+                                <ProgressBar Value="{Binding UpdateProgress, Mode=OneWay}"
                                              Height="6"/>
                                 <TextBlock Style="{StaticResource Caption}"
                                            Margin="0,4,0,0"
@@ -532,6 +576,44 @@
         </ui:AppDialog>
 
         <ui:AppDialog Grid.RowSpan="2"
+                      Header="初始化 Git"
+                      CardMaxWidth="520"
+                      CloseOnOverlay="False"
+                      CloseOnPrimary="False"
+                      AllowDismiss="{Binding InitGitCanDismiss}"
+                      IsOpen="{Binding IsInitGitOpen, Mode=TwoWay}"
+                      PrimaryText="按远端覆盖"
+                      PrimaryCommand="{Binding ConfirmInitGitCommand}"
+                      SecondaryText="取消"
+                      SecondaryCommand="{Binding CloseInitGitCommand}">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap"
+                           Foreground="{DynamicResource BadBrush}"
+                           Text="{Binding InitGitText}"/>
+                <ProgressBar Margin="0,12,0,0"
+                             Height="8"
+                             Value="{Binding InitGitProgress, Mode=OneWay}"/>
+                <TextBlock Style="{StaticResource Caption}"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap"
+                           Text="{Binding InitGitProgressText}"/>
+            </StackPanel>
+        </ui:AppDialog>
+
+        <ui:AppDialog Grid.RowSpan="2"
+                      Header="确认切换分支"
+                      CardMaxWidth="520"
+                      IsOpen="{Binding IsBranchSwitchOpen, Mode=TwoWay}"
+                      PrimaryText="仍然切换"
+                      PrimaryCommand="{Binding ConfirmBranchSwitchCommand}"
+                      SecondaryText="取消"
+                      SecondaryCommand="{Binding CloseBranchSwitchCommand}">
+            <TextBlock TextWrapping="Wrap"
+                       Foreground="{DynamicResource BadBrush}"
+                       Text="{Binding BranchSwitchText}"/>
+        </ui:AppDialog>
+
+        <ui:AppDialog Grid.RowSpan="2"
                       Header="无法自动更新"
                       CardMaxWidth="520"
                       IsOpen="{Binding IsConflictOpen, Mode=TwoWay}"
@@ -543,23 +625,38 @@
         </ui:AppDialog>
 
         <ui:AppDialog Grid.RowSpan="2"
-                      Header="提交并 Push"
+                      Header="{Binding GitActionTitle}"
                       CardMaxWidth="520"
+                      IsOpen="{Binding IsGitActionOpen, Mode=TwoWay}"
+                      PrimaryText="{Binding GitActionPrimaryText}"
+                      PrimaryCommand="{Binding ConfirmGitActionCommand}"
+                      SecondaryText="取消"
+                      SecondaryCommand="{Binding CloseGitActionCommand}">
+            <TextBlock TextWrapping="Wrap"
+                       Text="{Binding GitActionText}"/>
+        </ui:AppDialog>
+
+        <ui:AppDialog Grid.RowSpan="2"
+                      Header="提交"
+                      CardMaxWidth="520"
+                      CloseOnPrimary="False"
                       IsOpen="{Binding IsCommitOpen, Mode=TwoWay}"
-                      PrimaryText="取消">
+                      PrimaryText="提交"
+                      PrimaryCommand="{Binding ConfirmCommitCommand}"
+                      SecondaryText="取消"
+                      SecondaryCommand="{Binding CloseCommitCommand}">
             <StackPanel>
                 <TextBlock TextWrapping="Wrap"
+                           Text="会把安装目录里的改动 git add -A 后提交到当前分支。不会 Push。"/>
+                <TextBlock Margin="0,8,0,0"
+                           TextWrapping="Wrap"
                            Style="{StaticResource Caption}"
-                           Text="会把安装目录里的改动提交到 git，再 Push 到远端。"/>
-                <TextBox Margin="0,8,0,8"
+                           Text="{Binding CommitChangesText}"/>
+                <TextBox Margin="0,8,0,0"
                          MinHeight="72"
                          AcceptsReturn="True"
                          TextWrapping="Wrap"
                          Text="{Binding CommitMessage, UpdateSourceTrigger=PropertyChanged}"/>
-                <Button Style="{StaticResource PrimaryButton}"
-                        Content="提交并 Push"
-                        HorizontalAlignment="Left"
-                        Command="{Binding ConfirmCommitCommand}"/>
             </StackPanel>
         </ui:AppDialog>
 

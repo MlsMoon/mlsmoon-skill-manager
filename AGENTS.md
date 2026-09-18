@@ -11,4 +11,4 @@
 - GitHub 打安装包只接受 `release` 分支上的 `vX.Y.Z` tag；先推 `release` 再推 tag
 - 改某模块前先读 `.agent/skills/mlsmoon-skill-manager/SKILL.md` 的路由表，再只打开对应模块 skill
 - 收工读 `.agent/skills/mlsmoon-self-iterate/SKILL.md`：同步 skill。单文件 300 行只是提示，不要为凑行数挤代码或拆文案；职责混了再拆
-- 验收用 `-t -xxx` 开子 agent，读 `.agent/skills/mlsmoon-verify/SKILL.md`。不要堆传统单测，不要 mock
+- 验收读 `.agent/skills/mlsmoon-verify/SKILL.md`：改了代码先跑 `Scripts\verify.bat -t -build`。不要默认开子 agent，不要默认 `-all` / `-ui`。不要堆传统单测，不要 mock

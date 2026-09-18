@@ -76,7 +76,7 @@ public static class MlsmoonSkillConfig
             ParentPluginId = plugin.Id,
             ParentPluginName = plugin.DisplayName,
             InstallName = id,
-            SourcePath = MlsmoonSkillConfig.FolderName
+            SourcePath = RoutingSkillSource.RelativeSourcePath(id)
         };
     }
 

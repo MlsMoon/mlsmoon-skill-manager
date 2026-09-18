@@ -12,7 +12,8 @@ public enum SkillGitState
     Unclear,
     LocalChanges,
     Conflict,
-    BranchSwitch
+    BranchSwitch,
+    NeedsAttach
 }
 
 public enum GitChangeKind
@@ -51,8 +52,10 @@ public sealed class SkillGitStatus
     public string Message { get; init; } = "";
     public string Warning { get; init; } = "";
     public bool Forbidden { get; init; }
+    public bool TreeMatchesRemote { get; init; }
     public bool CanUpdate =>
-        !Forbidden && State is SkillGitState.Behind or SkillGitState.BranchSwitch;
+        !Forbidden
+        && State is SkillGitState.Behind or SkillGitState.BranchSwitch;
 
     public static SkillGitState Decide(
         bool installed,
@@ -129,7 +132,11 @@ public sealed class SkillGitStatus
             SkillGitState.Conflict => compare.Relation == CommitRelation.Diverged
                 ? "有冲突：工作区改过，且本机与远端已分叉，请手动处理"
                 : "有冲突：工作区改过，且本机落后远端，请手动处理后再更新",
-            SkillGitState.BranchSwitch => $"将切换到 {branch}，工作区是干净的",
+            SkillGitState.BranchSwitch => string.IsNullOrWhiteSpace(installedBranch)
+                || installedBranch.Equals(branch, StringComparison.OrdinalIgnoreCase)
+                ? $"将切换到 {branch}。切换会改掉安装目录文件，需确认。"
+                : $"当前在 {installedBranch}，将切换到 {branch}。切换会改掉安装目录文件，需确认。",
+            SkillGitState.NeedsAttach => "需要初始化 Git：还没有接上远端分支",
             _ => canReachRemote && !hasRemote ? "未能读取远端提交" : "尚未对照 Git"
         };
     }

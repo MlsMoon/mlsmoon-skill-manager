@@ -1,11 +1,11 @@
 ---
 name: mlsmoon-install
-description: 维护 Skill / Plugin / Package 安装目标、`.mlsmoon` 身份、路由 Skill、标记文件与安装快照。适用于改 SkillInstaller、InstallSnapshot、UnityWorkspace、安装路径、随插件路由 Skill，或排查误删本地目录。
+description: 维护 Skill / Plugin / Package 安装目标、`.mlsmoon` 身份、路由 Skill 真源 `project-skill`、标记文件与安装快照。适用于改 SkillInstaller、RoutingSkillSource、InstallSnapshot、UnityWorkspace、安装路径、随插件路由 Skill，或排查误删本地目录。
 ---
 
 # 安装
 
-代码：`SkillInstaller`、`SkillCopy` / `SkillCopyInstall`、`WorkspaceRepo`、`LanSkillInstall`、`InstallSnapshot`、`UnityWorkspace`、`AppPaths`。界面触发在 `MainViewModel` 的安装 / 更新 / 卸载。
+代码：`SkillInstaller`、`SkillCopy` / `SkillCopyInstall`、`WorkspaceRepo`、`LanSkillInstall`、`InstallSnapshot`、`RoutingSkillInstall`、`RoutingSkillSource`、`UnityWorkspace`、`AppPaths`。界面触发在 `MainViewModel` 的安装 / 更新 / 卸载。
 
 Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Package 安装逻辑相同，只是默认目录和标记不同。不要扫描工作区里其它条目，也不要改无标记文件的目录。
 
@@ -37,7 +37,13 @@ Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Packa
 - 卸载父级时：有本工具标记的子目录一并卸；没有标记的（项目自己维护的路由稿）跳过
 - 权限跟所属 Plugin / Package
 - 插件仓 `.mlsmoon/skill.json` 且 `kind: routing` 时，不要再把 `Skills~` 拷进 Skill 根。旧 catalog `companionSkills` 只给还没这份配置的条目当退路
-- 工作区已有同一 `id` 则不覆盖 `SKILL.md`，只补 `.mlsmoon`
+- 工作区已有同一 `id` 则不覆盖 `SKILL.md`，只补 `.mlsmoon`（没有 `project-skill` 真源、走生成稿退路时）
+- 完整 Skill 真源在 `{Plugin}/.mlsmoon/project-skill/{id}/`（`id` 来自 `skill.json`）。工作区 Agent 副本仍是 `{Skill根}/skills/{id}/`，不要把路由卡当成 Plugin 仓库根
+- 安装 `RoutingSkillInstall.Ensure`：源目录有可拷文件就 overlay 到 Skill 根；源不存在且工作区还没有 `SKILL.md` 时才 `Render()` 一张生成稿，已有 `SKILL.md` 不覆盖
+- 「从源同步 / 同步到源」是本地逐文件拷贝，和 Git 脱钩。覆盖同源相对路径，不删另一边多出来的文件。工作区里本工具写的 `.mlsmoon-skill.json` 和身份 `.mlsmoon/` 不同步进插件
+- 「同步到源」在工作区已有路由副本时就可点（卡片已安装或对照结果 `DestExists`），不要等对照跑完才亮。源目录还不存在时正是这个按钮把副本写进 `.mlsmoon/project-skill/{id}/`。点下去必须有日志；`CanExecute(null)` 或找不到所属 Plugin 时不能静默返回
+- 对照复用 `InstallSnapshot.HashTree` / `Diff`（忽略 `.git`、标记、`Thumbs.db`、身份 `.mlsmoon`）。两边都改过只列 Added / Modified / Deleted，不自动三路合并
+- `ToRoutingCompanion` 的 `SourcePath` 是 `.mlsmoon/project-skill/{id}`，不是文件夹名 `.mlsmoon`
 
 ## 标记与快照
 
@@ -71,4 +77,4 @@ Skill、Plugin、Package 必须走不同目录，不要混装。Plugin 和 Packa
 - 为了对齐 Plastic 而删掉 `.git`
 - 扫描、改写清单以外的本地 skill / plugin / package
 
-清单字段见 `mlsmoon-catalog`。卡片 Git 状态与冲突见 `mlsmoon-workspace`。改完跑 `-t -install`。
+清单字段见 `mlsmoon-catalog`。卡片 Git 状态与冲突见 `mlsmoon-workspace`。安装 / 标记 / 路由真源变了再按 `mlsmoon-verify` 跑 `-t -install`。

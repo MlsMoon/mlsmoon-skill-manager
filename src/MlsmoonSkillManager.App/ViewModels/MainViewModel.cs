@@ -53,7 +53,24 @@ public sealed class MainViewModel : ObservableObject
     private bool _allowGitCommit;
     private bool _isCommitOpen;
     private string _commitMessage = "";
+    private string _commitChangesText = "";
     private SkillRowViewModel? _commitRow;
+    private bool _isGitActionOpen;
+    private string _gitActionTitle = "";
+    private string _gitActionText = "";
+    private string _gitActionPrimaryText = "确定";
+    private GitCardAction _gitAction;
+    private SkillRowViewModel? _gitActionRow;
+    private bool _isInitGitOpen;
+    private bool _initGitRunning;
+    private string _initGitText = "";
+    private double _initGitProgress;
+    private string _initGitProgressText = "";
+    private SkillRowViewModel? _initGitRow;
+    private bool _isBranchSwitchOpen;
+    private string _branchSwitchText = "";
+    private SkillRowViewModel? _branchSwitchRow;
+    private bool _branchSwitchConfirmed;
     private bool _suppressRootEvents;
     private GhAccountStatus _account = new();
     private SkillCatalogScan _scan = null!;
@@ -107,12 +124,22 @@ public sealed class MainViewModel : ObservableObject
         RemoveWorkspaceCommand = new RelayCommand(p => RemoveWorkspace(p as WorkspaceItemViewModel));
         RefreshCommand = new RelayCommand(async _ => await RefreshAsync().ConfigureAwait(true), _ => !Busy);
         InstallCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel).ConfigureAwait(true), CanMutate);
-        PullCommand = new RelayCommand(async p => await PullAsync(p as SkillRowViewModel).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel pull && pull.CanPull);
-        PushCommand = new RelayCommand(async p => await PushAsync(p as SkillRowViewModel).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel push && push.CanPush);
+        PullCommand = new RelayCommand(async p => await PullAsync(p as SkillRowViewModel).ConfigureAwait(true), p => p is not SkillRowViewModel row || row.CanPull);
+        PushCommand = new RelayCommand(async p => await PushAsync(p as SkillRowViewModel).ConfigureAwait(true), p => p is not SkillRowViewModel row || row.CanPush);
+        CommitCommand = new RelayCommand(async p => await CommitAsync(p as SkillRowViewModel).ConfigureAwait(true), p => p is not SkillRowViewModel row || row.CanCommit);
+        InitGitCommand = new RelayCommand(async p => await InitGitAsync(p as SkillRowViewModel).ConfigureAwait(true), CanPromptInitGit);
+        SyncFromSourceCommand = new RelayCommand(async p => await SyncRoutingAsync(p as SkillRowViewModel, fromSource: true).ConfigureAwait(true), p => CanSkillRow(p, row => row.CanSyncFromSource));
+        SyncToSourceCommand = new RelayCommand(async p => await SyncRoutingAsync(p as SkillRowViewModel, fromSource: false).ConfigureAwait(true), p => CanSkillRow(p, row => row.CanSyncToSource));
         NasLoginCommand = new RelayCommand(async p => await NasLoginAsync(p as string).ConfigureAwait(true), _ => !Busy);
         NasLogoutCommand = new RelayCommand(_ => NasLogout(), _ => GitSsh.HasLogin);
         ConfirmCommitCommand = new RelayCommand(async _ => await ConfirmCommitAsync().ConfigureAwait(true), _ => CanConfirmCommit);
         CloseCommitCommand = new RelayCommand(_ => IsCommitOpen = false);
+        ConfirmGitActionCommand = new RelayCommand(async _ => await ConfirmGitActionAsync().ConfigureAwait(true), _ => _gitActionRow is not null);
+        CloseGitActionCommand = new RelayCommand(_ => IsGitActionOpen = false);
+        ConfirmInitGitCommand = new RelayCommand(async _ => await ConfirmInitGitAsync().ConfigureAwait(true), _ => CanConfirmInitGit);
+        CloseInitGitCommand = new RelayCommand(_ => CloseInitGit(), _ => InitGitCanDismiss);
+        ConfirmBranchSwitchCommand = new RelayCommand(async _ => await ConfirmBranchSwitchAsync().ConfigureAwait(true));
+        CloseBranchSwitchCommand = new RelayCommand(_ => IsBranchSwitchOpen = false);
         UninstallCommand = new RelayCommand(async p => await UninstallAsync(p as SkillRowViewModel).ConfigureAwait(true), CanMutate);
         OpenInstallFolderCommand = new RelayCommand(
             p => OpenPath(p switch
@@ -165,12 +192,16 @@ public sealed class MainViewModel : ObservableObject
         OpenWorkspaceFolderCommand = new RelayCommand(_ => OpenPath(WorkspacePath), _ => HasOpenWorkspace);
         OpenProductRepoCommand = new RelayCommand(_ => OpenPath(ProductRepo));
         ClearCacheCommand = new RelayCommand(_ => ClearRepoCache());
+        RestartDevCommand = new RelayCommand(_ => (Application.Current as App)?.RestartDev(), _ => ShowDevRestart);
         CopyDiagnosticsCommand = new RelayCommand(_ => Clipboard.SetText(BuildDiagnostics()));
         _scan = new SkillCatalogScan(
             AllSkills, _gh, _git, _skillGit,
             () => NasUser, () => WorkspacePath, () => HasOpenWorkspace, Log,
             ApplyAccount, ApplyNoLanCatalog, ApplyLanProbe, ApplyNasAccess,
-            () => { PullCommand.RaiseCanExecuteChanged(); PushCommand.RaiseCanExecuteChanged(); });
+            () =>
+            {
+                RaiseSkillGitCommands();
+            });
         ReloadWorkspaceItems();
         if (!string.IsNullOrWhiteSpace(WorkspacePath) && Directory.Exists(WorkspacePath))
         {
@@ -197,10 +228,20 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand InstallCommand { get; }
     public RelayCommand PullCommand { get; }
     public RelayCommand PushCommand { get; }
+    public RelayCommand CommitCommand { get; }
+    public RelayCommand InitGitCommand { get; }
+    public RelayCommand SyncFromSourceCommand { get; }
+    public RelayCommand SyncToSourceCommand { get; }
     public RelayCommand NasLoginCommand { get; }
     public RelayCommand NasLogoutCommand { get; }
     public RelayCommand ConfirmCommitCommand { get; }
     public RelayCommand CloseCommitCommand { get; }
+    public RelayCommand ConfirmGitActionCommand { get; }
+    public RelayCommand CloseGitActionCommand { get; }
+    public RelayCommand ConfirmInitGitCommand { get; }
+    public RelayCommand CloseInitGitCommand { get; }
+    public RelayCommand ConfirmBranchSwitchCommand { get; }
+    public RelayCommand CloseBranchSwitchCommand { get; }
     public RelayCommand UninstallCommand { get; }
     public RelayCommand SelectThemeCommand { get; }
     public RelayCommand SelectSettingsTabCommand { get; }
@@ -221,6 +262,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand OpenProductRepoCommand { get; }
     public RelayCommand ClearCacheCommand { get; }
     public RelayCommand CopyDiagnosticsCommand { get; }
+    public RelayCommand RestartDevCommand { get; }
     public RelayCommand OpenInstallFolderCommand { get; }
     public RelayCommand CloseConflictCommand { get; }
     public RelayCommand OpenConflictFolderCommand { get; }
@@ -383,7 +425,18 @@ public sealed class MainViewModel : ObservableObject
     public bool IsCommitOpen
     {
         get => _isCommitOpen;
-        set => SetProperty(ref _isCommitOpen, value);
+        set
+        {
+            if (!SetProperty(ref _isCommitOpen, value) || value)
+            {
+                return;
+            }
+
+            _commitRow = null;
+            CommitMessage = "";
+            CommitChangesText = "";
+            ConfirmCommitCommand?.RaiseCanExecuteChanged();
+        }
     }
 
     public string CommitMessage
@@ -398,8 +451,135 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    public string CommitChangesText
+    {
+        get => _commitChangesText;
+        set => SetProperty(ref _commitChangesText, value);
+    }
+
     public bool CanConfirmCommit =>
-        !Busy && _commitRow is not null && !string.IsNullOrWhiteSpace(CommitMessage);
+        _commitRow is not null && !string.IsNullOrWhiteSpace(CommitMessage);
+
+    public bool IsGitActionOpen
+    {
+        get => _isGitActionOpen;
+        set
+        {
+            if (!SetProperty(ref _isGitActionOpen, value) || value)
+            {
+                return;
+            }
+
+            _gitActionRow = null;
+            ConfirmGitActionCommand?.RaiseCanExecuteChanged();
+        }
+    }
+
+    public string GitActionTitle
+    {
+        get => _gitActionTitle;
+        set => SetProperty(ref _gitActionTitle, value);
+    }
+
+    public string GitActionText
+    {
+        get => _gitActionText;
+        set => SetProperty(ref _gitActionText, value);
+    }
+
+    public string GitActionPrimaryText
+    {
+        get => _gitActionPrimaryText;
+        set => SetProperty(ref _gitActionPrimaryText, value);
+    }
+
+    public bool IsInitGitOpen
+    {
+        get => _isInitGitOpen;
+        set
+        {
+            if (!value && _initGitRunning)
+            {
+                return;
+            }
+
+            if (!SetProperty(ref _isInitGitOpen, value) || value)
+            {
+                return;
+            }
+
+            _initGitRow = null;
+            InitGitProgress = 0;
+            InitGitProgressText = "";
+            ConfirmInitGitCommand?.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool InitGitRunning
+    {
+        get => _initGitRunning;
+        private set
+        {
+            if (!SetProperty(ref _initGitRunning, value))
+            {
+                return;
+            }
+
+            Raise(nameof(InitGitCanDismiss));
+            Raise(nameof(CanConfirmInitGit));
+            ConfirmInitGitCommand?.RaiseCanExecuteChanged();
+            CloseInitGitCommand?.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool InitGitCanDismiss => !InitGitRunning;
+
+    public string InitGitText
+    {
+        get => _initGitText;
+        set => SetProperty(ref _initGitText, value);
+    }
+
+    public double InitGitProgress
+    {
+        get => _initGitProgress;
+        set => SetProperty(ref _initGitProgress, value);
+    }
+
+    public string InitGitProgressText
+    {
+        get => _initGitProgressText;
+        set => SetProperty(ref _initGitProgressText, value);
+    }
+
+    public bool CanConfirmInitGit =>
+        !InitGitRunning && _initGitRow is not null && HasOpenWorkspace;
+
+    public bool IsBranchSwitchOpen
+    {
+        get => _isBranchSwitchOpen;
+        set
+        {
+            if (!SetProperty(ref _isBranchSwitchOpen, value) || value)
+            {
+                return;
+            }
+
+            if (!_branchSwitchConfirmed)
+            {
+                _branchSwitchRow?.RevertBranchToInstalled();
+            }
+
+            _branchSwitchRow = null;
+            _branchSwitchConfirmed = false;
+        }
+    }
+
+    public string BranchSwitchText
+    {
+        get => _branchSwitchText;
+        set => SetProperty(ref _branchSwitchText, value);
+    }
 
     public bool HasWorkspaces => Workspaces.Count > 0;
     public bool HasOpenWorkspace =>
@@ -415,6 +595,7 @@ public sealed class MainViewModel : ObservableObject
                 : "当前工作区路径不存在。现在只能浏览清单，不能安装、更新或卸载。";
     public string Version => typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
     public bool IsDev { get; } = Application.Current is App app && app.IsDev;
+    public bool ShowDevRestart => IsDev && Application.Current is App { IsUiTest: false };
     public string WindowTitle => Application.Current is App { IsUiTest: true }
         ? "Moon Game Dev Tool Manager — UI TEST"
         : IsDev ? "Moon Game Dev Tool Manager — DEV" : "Moon Game Dev Tool Manager";
@@ -515,8 +696,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 RefreshCommand.RaiseCanExecuteChanged();
                 InstallCommand.RaiseCanExecuteChanged();
-                PullCommand.RaiseCanExecuteChanged();
-                PushCommand.RaiseCanExecuteChanged();
+                RaiseSkillGitCommands();
                 UninstallCommand.RaiseCanExecuteChanged();
                 NasLoginCommand?.RaiseCanExecuteChanged();
                 ConfirmCommitCommand?.RaiseCanExecuteChanged();
@@ -662,8 +842,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             _skillGit.ClearCaches();
-            await _scan.RefreshAccessAsync().ConfigureAwait(true);
-            RefreshInstallStatuses();
+            await ScanCatalogAsync().ConfigureAwait(true);
         }
         finally
         {
@@ -721,11 +900,183 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private async Task PullAsync(SkillRowViewModel? row)
+    private bool CanPromptInitGit(object? parameter)
     {
-        if (row is null || !TryBeginMutation(row, requireAccess: true, out var roots))
+        return parameter is not SkillRowViewModel row || row.CanInitGit;
+    }
+
+    private Task InitGitAsync(SkillRowViewModel? row)
+    {
+        if (row is null)
+        {
+            Log("初始化 Git 时没有拿到卡片。");
+            return Task.CompletedTask;
+        }
+
+        if (string.IsNullOrWhiteSpace(WorkspacePath) || !Directory.Exists(WorkspacePath))
+        {
+            Log("请先选择有效工作区。");
+            return Task.CompletedTask;
+        }
+
+        if (!row.Access.CanInstall)
+        {
+            Log($"{row.Name}: 当前无权限访问");
+            return Task.CompletedTask;
+        }
+
+        if (row.Git.State != SkillGitState.NeedsAttach)
+        {
+            Log($"{row.Name}: 已经接上 Git。");
+            return Task.CompletedTask;
+        }
+
+        if (SkillGit.IsForbiddenBranch(
+                row.Definition,
+                UnityWorkspace.ReadEditorVersion(WorkspacePath),
+                row.SelectedBranch))
+        {
+            Log($"{row.Name}: {row.Git.Warning}");
+            return Task.CompletedTask;
+        }
+
+        PromptInitGit(row);
+        return Task.CompletedTask;
+    }
+
+    private void PromptInitGit(SkillRowViewModel row)
+    {
+        var branch = InitGitBranch(row);
+        var branchNote = string.IsNullOrWhiteSpace(branch) ? "所选分支" : "origin/" + branch;
+        var match = row.Git.TreeMatchesRemote
+            ? $"当前文件树已经和 {branchNote} 一样；初始化仍会 reset --hard 接到该分支。"
+            : $"当前文件和 {branchNote} 不完全一样。初始化会按远端覆盖同名文件。";
+        _initGitRow = row;
+        InitGitProgress = 0;
+        InitGitProgressText = "确认后开始初始化。";
+        InitGitText =
+            $"{row.Name} 会把安装目录接到 {branchNote}。\n\n{match}\n未跟踪文件（例如 .mlsmoon）会留下。不能从本工具一键撤销。";
+        IsInitGitOpen = true;
+        ConfirmInitGitCommand?.RaiseCanExecuteChanged();
+        Log($"{row.Name}: 等待确认初始化 Git。");
+    }
+
+    private void CloseInitGit()
+    {
+        if (_initGitRunning)
         {
             return;
+        }
+
+        IsInitGitOpen = false;
+    }
+
+    private async Task ConfirmInitGitAsync()
+    {
+        var row = _initGitRow;
+        if (row is null || _initGitRunning)
+        {
+            return;
+        }
+
+        await AdoptRemoteForRowAsync(row).ConfigureAwait(true);
+    }
+
+    private static string InitGitBranch(SkillRowViewModel row)
+    {
+        return string.IsNullOrWhiteSpace(row.SelectedBranch) ? row.Git.TargetBranch : row.SelectedBranch;
+    }
+
+    private async Task AdoptRemoteForRowAsync(SkillRowViewModel row)
+    {
+        var dest = row.InstallFolder;
+        if (string.IsNullOrWhiteSpace(dest) || !WorkspaceRepo.CanAttach(row.Definition))
+        {
+            Log($"{row.Name} 不能把安装目录接到远端。");
+            return;
+        }
+
+        var origin = WorkspaceRepo.OriginUrl(row.Definition, NasUser);
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            Log($"{row.Name}: 没有远端地址。");
+            return;
+        }
+
+        var branch = InitGitBranch(row);
+        if (string.IsNullOrWhiteSpace(branch))
+        {
+            Log($"{row.Name}: 没有分支，无法初始化 Git。");
+            return;
+        }
+
+        InitGitRunning = true;
+        ReportInitGit("正在初始化 Git…", 8);
+        row.MarkGitChecking();
+        row.SetScan("正在初始化 Git…", 8);
+        Busy = true;
+        try
+        {
+            Log($"初始化 Git {row.Name}（{branch}）");
+            var progress = new Progress<ScanProgress>(step =>
+            {
+                ReportInitGit(step.Text, step.Percent);
+                row.SetScan(step.Text, step.Percent);
+            });
+            await _workspaceRepo.AdoptRemoteAsync(dest, origin, branch, Log, progress).ConfigureAwait(true);
+            ReportInitGit("初始化完成", 100);
+            row.SetScan("初始化完成", 100);
+            _skillGit.ClearCaches();
+            Log($"完成 {row.Name}");
+            InitGitRunning = false;
+            IsInitGitOpen = false;
+            RefreshInstallStatuses(inspectGit: false);
+            await _scan.InspectOneAsync(row).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            ReportInitGit("初始化失败：" + ex.Message, (int)InitGitProgress);
+            Log($"失败: {ex.Message}");
+            try
+            {
+                await _scan.InspectOneAsync(row).ConfigureAwait(true);
+            }
+            catch (Exception inspectEx)
+            {
+                Log($"对照失败: {inspectEx.Message}");
+            }
+        }
+        finally
+        {
+            InitGitRunning = false;
+            Busy = false;
+        }
+    }
+
+    private void ReportInitGit(string text, int percent)
+    {
+        InitGitProgress = percent;
+        InitGitProgressText = text;
+    }
+
+    private Task PullAsync(SkillRowViewModel? row)
+    {
+        if (row is null)
+        {
+            Log("Pull 时没有拿到卡片。");
+            return Task.CompletedTask;
+        }
+
+        if (string.IsNullOrWhiteSpace(WorkspacePath) || !Directory.Exists(WorkspacePath))
+        {
+            Log("请先选择有效工作区。");
+            return Task.CompletedTask;
+        }
+
+        if (!row.Access.CanInstall)
+        {
+            Log($"{row.Name}: 当前无权限访问");
+            return Task.CompletedTask;
         }
 
         if (SkillGit.IsForbiddenBranch(
@@ -734,10 +1085,148 @@ public sealed class MainViewModel : ObservableObject
                 row.SelectedBranch))
         {
             Log($"{row.Name}: Unity 6 不能使用 master 上的 URP 14，请改选 urp-17.5。");
-            return;
+            return Task.CompletedTask;
+        }
+
+        if (NeedsBranchSwitch(row))
+        {
+            PromptBranchSwitch(row);
+            return Task.CompletedTask;
         }
 
         if (!CanAutoUpdate(row))
+        {
+            return Task.CompletedTask;
+        }
+
+        var branch = string.IsNullOrWhiteSpace(row.SelectedBranch) ? row.Git.InstalledBranch : row.SelectedBranch;
+        PromptGitAction(
+            GitCardAction.Pull,
+            row,
+            "确认 Pull",
+            SkillGitPresentation.PullConfirm(row.Name, branch, row.Git.Compare.BehindBy),
+            "开始 Pull");
+        return Task.CompletedTask;
+    }
+
+    private Task PushAsync(SkillRowViewModel? row)
+    {
+        if (row is null)
+        {
+            Log("Push 时没有拿到卡片。");
+            return Task.CompletedTask;
+        }
+
+        if (!AllowGitPush)
+        {
+            Log("请在设置「连接」里打开「允许 Push」。");
+            return Task.CompletedTask;
+        }
+
+        if (row.Git.Forbidden)
+        {
+            Log($"{row.Name}: {row.Git.Warning}");
+            return Task.CompletedTask;
+        }
+
+        var dest = row.InstallFolder;
+        if (string.IsNullOrWhiteSpace(dest) || !WorkspaceGit.HasRepo(dest))
+        {
+            Log($"{row.Name} 安装目录没有 .git，先安装或 Pull 接上远端。");
+            return Task.CompletedTask;
+        }
+
+        if (row.Git.State != SkillGitState.Ahead)
+        {
+            Log($"{row.Name}: 没有可推送的本地提交。有未提交改动请先 Commit。");
+            return Task.CompletedTask;
+        }
+
+        var branch = string.IsNullOrWhiteSpace(row.SelectedBranch) ? row.Git.InstalledBranch : row.SelectedBranch;
+        PromptGitAction(
+            GitCardAction.Push,
+            row,
+            "确认 Push",
+            SkillGitPresentation.PushConfirm(row.Name, branch, row.Git.Compare.AheadBy),
+            "开始 Push");
+        return Task.CompletedTask;
+    }
+
+    private Task CommitAsync(SkillRowViewModel? row)
+    {
+        if (row is null)
+        {
+            Log("Commit 时没有拿到卡片。");
+            return Task.CompletedTask;
+        }
+
+        if (!AllowGitCommit)
+        {
+            Log("请在设置「连接」里打开「允许 Commit」。");
+            return Task.CompletedTask;
+        }
+
+        if (!row.CanCommit)
+        {
+            Log($"{row.Name}: 没有可提交的本地改动。");
+            return Task.CompletedTask;
+        }
+
+        _commitRow = row;
+        CommitMessage = "";
+        CommitChangesText = row.LocalChangesText;
+        IsCommitOpen = true;
+        ConfirmCommitCommand?.RaiseCanExecuteChanged();
+        Log($"{row.Name}: 等待填写提交说明。");
+        return Task.CompletedTask;
+    }
+
+    private void PromptGitAction(
+        GitCardAction action,
+        SkillRowViewModel row,
+        string title,
+        string text,
+        string primary)
+    {
+        _gitAction = action;
+        _gitActionRow = row;
+        GitActionTitle = title;
+        GitActionText = text;
+        GitActionPrimaryText = primary;
+        IsGitActionOpen = true;
+        ConfirmGitActionCommand?.RaiseCanExecuteChanged();
+        Log($"{row.Name}: 等待确认{title}。");
+    }
+
+    private async Task ConfirmGitActionAsync()
+    {
+        var row = _gitActionRow;
+        var action = _gitAction;
+        IsGitActionOpen = false;
+        if (row is null)
+        {
+            return;
+        }
+
+        if (action == GitCardAction.Pull)
+        {
+            await ExecutePullAsync(row).ConfigureAwait(true);
+            return;
+        }
+
+        var dest = row.InstallFolder;
+        if (string.IsNullOrWhiteSpace(dest))
+        {
+            Log($"{row.Name} 安装目录不存在。");
+            return;
+        }
+
+        await PushExistingAsync(row, dest).ConfigureAwait(true);
+    }
+
+    private async Task ExecutePullAsync(SkillRowViewModel row)
+    {
+        if (!TryBeginMutation(row, requireAccess: true, out var roots))
         {
             return;
         }
@@ -766,7 +1255,8 @@ public sealed class MainViewModel : ObservableObject
 
             _skillGit.ClearCaches();
             Log($"完成 {row.Name}");
-            RefreshInstallStatuses();
+            RefreshInstallStatuses(inspectGit: false);
+            await _scan.InspectOneAsync(row).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -776,45 +1266,6 @@ public sealed class MainViewModel : ObservableObject
         {
             Busy = false;
         }
-    }
-
-    private async Task PushAsync(SkillRowViewModel? row)
-    {
-        if (row is null || !TryBeginMutation(row, requireAccess: true, out _))
-        {
-            return;
-        }
-
-        if (!AllowGitPush)
-        {
-            Log("请在设置「连接」里打开「允许 Push」。");
-            return;
-        }
-
-        if (row.Git.Forbidden)
-        {
-            Log($"{row.Name}: {row.Git.Warning}");
-            return;
-        }
-
-        var dest = row.InstallFolder;
-        if (string.IsNullOrWhiteSpace(dest) || !WorkspaceGit.HasRepo(dest))
-        {
-            Log($"{row.Name} 安装目录没有 .git，先安装或 Pull 接上远端。");
-            return;
-        }
-
-        if (row.Git.State == SkillGitState.LocalChanges && AllowGitCommit)
-        {
-            _commitRow = row;
-            CommitMessage = "";
-            IsCommitOpen = true;
-            Raise(nameof(CanConfirmCommit));
-            ConfirmCommitCommand.RaiseCanExecuteChanged();
-            return;
-        }
-
-        await PushExistingAsync(row, dest).ConfigureAwait(true);
     }
 
     private async Task ConfirmCommitAsync()
@@ -827,17 +1278,29 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var dest = row.InstallFolder;
+        if (string.IsNullOrWhiteSpace(dest) || !WorkspaceGit.HasRepo(dest))
+        {
+            Log($"{row.Name} 安装目录没有 .git，无法提交。");
+            return;
+        }
+
         Busy = true;
         try
         {
             Log($"Commit {row.Name}");
             await _workspaceRepo.CommitAsync(dest, CommitMessage).ConfigureAwait(true);
             IsCommitOpen = false;
-            await PushExistingAsync(row, dest, alreadyBusy: true).ConfigureAwait(true);
+            _skillGit.ClearCaches();
+            Log($"完成 {row.Name}：已提交，未 Push。");
+            RefreshInstallStatuses(inspectGit: false);
+            await _scan.InspectOneAsync(row).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
             Log($"失败: {ex.Message}");
+        }
+        finally
+        {
             Busy = false;
         }
     }
@@ -914,8 +1377,7 @@ public sealed class MainViewModel : ObservableObject
             Log($"NAS 已登录（{NasUser}）。之后的安装 / Pull / Push 会自动带上这份凭据。");
             NotifyNasLogin();
             _skillGit.ClearCaches();
-            await _scan.RefreshAccessAsync().ConfigureAwait(true);
-            RefreshInstallStatuses();
+            await ScanCatalogAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -954,7 +1416,78 @@ public sealed class MainViewModel : ObservableObject
             row.SetGitWriteFlags(AllowGitPush, AllowGitCommit);
         }
 
+        RaiseSkillGitCommands();
+    }
+
+    private void RaiseSkillGitCommands()
+    {
+        PullCommand?.RaiseCanExecuteChanged();
         PushCommand?.RaiseCanExecuteChanged();
+        CommitCommand?.RaiseCanExecuteChanged();
+        InitGitCommand?.RaiseCanExecuteChanged();
+        SyncFromSourceCommand?.RaiseCanExecuteChanged();
+        SyncToSourceCommand?.RaiseCanExecuteChanged();
+    }
+
+    private async Task SyncRoutingAsync(SkillRowViewModel? row, bool fromSource)
+    {
+        var action = fromSource ? "从源同步" : "同步到源";
+        if (row is null)
+        {
+            Log($"{action}时没有拿到卡片。");
+            return;
+        }
+
+        if (!row.Definition.IsRouting)
+        {
+            Log($"{row.Name} 不是路由 Skill，不能{action}。");
+            return;
+        }
+
+        if (!TryBeginMutation(row, requireAccess: false, out _))
+        {
+            return;
+        }
+
+        var parent = ParentRow(row);
+        if (parent is null)
+        {
+            Log($"{row.Name}: 找不到所属 Plugin。");
+            return;
+        }
+
+        Busy = true;
+        try
+        {
+            row.MarkGitChecking();
+            row.SetScan(fromSource ? "从源同步…" : "同步到源…", 50);
+            var align = await Task.Run(() => fromSource
+                    ? RoutingSkillSource.CopyFromSource(
+                        parent.Definition, row.Definition, WorkspacePath, SkillRoots.DetectableRoots, null)
+                    : RoutingSkillSource.CopyToSource(
+                        parent.Definition, row.Definition, WorkspacePath, SkillRoots.DetectableRoots, null))
+                .ConfigureAwait(true);
+            Log(fromSource
+                ? $"从源同步 {row.Name} ← {RoutingSkillSource.RelativeSourcePath(row.Definition.Id)}"
+                : $"同步到源 {row.Name} → {RoutingSkillSource.RelativeSourcePath(row.Definition.Id)}");
+            Log(align.Summary);
+            row.ApplyRouting(align);
+            RaiseSkillGitCommands();
+            RefreshInstallStatuses(inspectGit: false);
+            if (!fromSource)
+            {
+                await _scan.InspectOneAsync(parent).ConfigureAwait(true);
+            }
+        }
+        catch (Exception ex)
+        {
+            row.ApplyGit(SkillGitStatus.Empty);
+            Log($"失败: {ex.Message}");
+        }
+        finally
+        {
+            Busy = false;
+        }
     }
 
     private Task UninstallAsync(SkillRowViewModel? row)
@@ -987,7 +1520,7 @@ public sealed class MainViewModel : ObservableObject
             return false;
         }
 
-        if (!row.Definition.IsProjectCopy && roots.Count == 0)
+        if (!row.Definition.IsProjectCopy && !row.Definition.IsRouting && roots.Count == 0)
         {
             Log($"请至少勾选一个 Skill 安装目标。默认建议 {SkillRoots.DefaultRoot}。");
             return false;
@@ -1004,7 +1537,35 @@ public sealed class MainViewModel : ObservableObject
 
     private bool CanMutate(object? parameter)
     {
-        return !Busy && HasOpenWorkspace && parameter is SkillRowViewModel;
+        return CanSkillRow(parameter);
+    }
+
+    private bool CanSkillRow(object? parameter, Func<SkillRowViewModel, bool>? extra = null)
+    {
+        if (Busy || !HasOpenWorkspace)
+        {
+            return false;
+        }
+
+        return parameter is not SkillRowViewModel row || extra is null || extra(row);
+    }
+
+    private SkillRowViewModel? ParentRow(SkillRowViewModel row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.Definition.ParentPluginId))
+        {
+            var parent = AllSkills.FirstOrDefault(item =>
+                item.Definition.Id.Equals(row.Definition.ParentPluginId, StringComparison.OrdinalIgnoreCase));
+            if (parent is not null)
+            {
+                return parent;
+            }
+        }
+
+        return AllSkills.FirstOrDefault(item =>
+            item.Definition.IsProjectCopy
+            && item.Definition.CompanionSkills.Any(companion =>
+                companion.Id.Equals(row.Definition.Id, StringComparison.OrdinalIgnoreCase)));
     }
 
     private bool CanAutoUpdate(SkillRowViewModel row)
@@ -1047,9 +1608,112 @@ public sealed class MainViewModel : ObservableObject
 
     private void OnSelectedBranchChanged(object? sender, EventArgs e)
     {
-        if (sender is SkillRowViewModel row && HasOpenWorkspace)
+        if (sender is not SkillRowViewModel row || !HasOpenWorkspace || row.IsRouting)
+        {
+            return;
+        }
+
+        if (row.IsLoading || Busy)
+        {
+            row.RevertBranchToInstalled();
+            return;
+        }
+
+        if (!NeedsBranchSwitch(row))
         {
             _ = _scan.InspectOneAsync(row);
+            return;
+        }
+
+        if (row.Git.State is SkillGitState.Conflict or SkillGitState.LocalChanges
+            || row.Git.Changes.Count > 0)
+        {
+            ShowConflict(row, $"{row.Name} 工作区有本地修改，不能切换分支。请先处理安装目录里的改动。");
+            row.RevertBranchToInstalled();
+            return;
+        }
+
+        PromptBranchSwitch(row);
+    }
+
+    private static bool NeedsBranchSwitch(SkillRowViewModel row)
+    {
+        return row.IsInstalled
+               && WorkspaceGit.HasRepo(row.InstallFolder)
+               && row.Git.State != SkillGitState.NeedsAttach
+               && !string.IsNullOrWhiteSpace(row.Git.InstalledBranch)
+               && !string.IsNullOrWhiteSpace(row.SelectedBranch)
+               && !row.SelectedBranch.Equals(row.Git.InstalledBranch, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PromptBranchSwitch(SkillRowViewModel row)
+    {
+        var from = row.Git.InstalledBranch;
+        var to = row.SelectedBranch;
+        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
+        {
+            return;
+        }
+
+        var editor = UnityWorkspace.ReadEditorVersion(WorkspacePath);
+        _branchSwitchConfirmed = false;
+        _branchSwitchRow = row;
+        BranchSwitchText = SkillGitPresentation.BranchSwitchWarning(
+            row.Name,
+            from,
+            to,
+            SkillGit.IsForbiddenBranch(row.Definition, editor, to));
+        IsBranchSwitchOpen = true;
+    }
+
+    private async Task ConfirmBranchSwitchAsync()
+    {
+        var row = _branchSwitchRow;
+        var to = row?.SelectedBranch ?? "";
+        _branchSwitchConfirmed = true;
+        if (row is null || string.IsNullOrWhiteSpace(to))
+        {
+            return;
+        }
+
+        var editor = UnityWorkspace.ReadEditorVersion(WorkspacePath);
+        if (SkillGit.IsForbiddenBranch(row.Definition, editor, to))
+        {
+            Log($"{row.Name}: Unity 6 不能使用 master 上的 URP 14，请改选 urp-17.5。");
+            row.RevertBranchToInstalled();
+            return;
+        }
+
+        var dest = row.InstallFolder;
+        if (string.IsNullOrWhiteSpace(dest) || !WorkspaceGit.HasRepo(dest))
+        {
+            Log($"{row.Name} 安装目录没有 .git，无法切换分支。");
+            row.RevertBranchToInstalled();
+            return;
+        }
+
+        Busy = true;
+        try
+        {
+            Log($"切换分支 {row.Name}：{row.Git.InstalledBranch} → {to}");
+            var origin = WorkspaceRepo.OriginUrl(row.Definition, NasUser)
+                         ?? throw new InvalidOperationException("没有远端地址。");
+            await _workspaceRepo.EnsureAttachedAsync(dest, origin, to, Log).ConfigureAwait(true);
+            await _workspaceRepo.SwitchBranchAsync(dest, to, Log).ConfigureAwait(true);
+            row.ClearUserBranchPick();
+            _skillGit.ClearCaches();
+            Log($"已切换到 {to}");
+            await _scan.InspectOneAsync(row).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Log($"失败: {ex.Message}");
+            row.ClearUserBranchPick();
+            await _scan.InspectOneAsync(row).ConfigureAwait(true);
+        }
+        finally
+        {
+            Busy = false;
         }
     }
 
@@ -1060,7 +1724,7 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(WorkspaceDisplay));
         Raise(nameof(BrowseOnlyHint));
         InstallCommand?.RaiseCanExecuteChanged();
-        PullCommand?.RaiseCanExecuteChanged(); PushCommand?.RaiseCanExecuteChanged();
+        RaiseSkillGitCommands();
         UninstallCommand?.RaiseCanExecuteChanged();
         OpenWorkspaceFolderCommand?.RaiseCanExecuteChanged();
         OpenInstallFolderCommand?.RaiseCanExecuteChanged();
@@ -1096,6 +1760,12 @@ public sealed class MainViewModel : ObservableObject
         }
 
         ApplyGitWriteFlags();
+    }
+
+    private async Task ScanCatalogAsync()
+    {
+        RefreshInstallStatuses(inspectGit: false);
+        await _scan.ScanAllAsync().ConfigureAwait(true);
     }
 
     private void RefreshInstallStatuses(bool inspectGit = true)
@@ -1489,5 +2159,11 @@ public sealed class MainViewModel : ObservableObject
     {
         var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
         LogText = string.IsNullOrWhiteSpace(LogText) ? line : LogText + Environment.NewLine + line;
+    }
+
+    private enum GitCardAction
+    {
+        Pull,
+        Push
     }
 }

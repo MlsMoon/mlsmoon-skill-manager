@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using MlsmoonSkillManager.App.Controls;
 using MlsmoonSkillManager.Core.Models;
+using MlsmoonSkillManager.Core.Services;
 
 namespace MlsmoonSkillManager.App.ViewModels;
 
@@ -14,7 +15,9 @@ public sealed class SkillRowViewModel : ObservableObject
     private double _loadProgress;
     private IReadOnlyList<RootInstallStatus> _installs = [];
     private SkillGitStatus _git = SkillGitStatus.Empty;
+    private RoutingSkillAlign _routing = new();
     private bool _suppressBranch;
+    private bool _userPickedBranch;
     private bool _allowGitPush;
     private bool _allowGitCommit;
 
@@ -29,11 +32,6 @@ public sealed class SkillRowViewModel : ObservableObject
             {
                 Branches.Add(branch);
             }
-        }
-
-        if (Branches.Count > 0)
-        {
-            _selectedBranch = SkillGitRecommend(definition);
         }
 
         _suppressBranch = false;
@@ -52,6 +50,7 @@ public sealed class SkillRowViewModel : ObservableObject
     public bool IsLan => Definition.IsLan;
     public bool IsPlugin => Definition.IsPlugin;
     public bool IsCompanion => Definition.IsCompanion;
+    public bool IsRouting => Definition.IsRouting;
     public string KindLabel => SkillRowPresentation.KindLabel(Definition);
     public BadgeAppearance KindAppearance => SkillRowPresentation.KindAppearance(Definition);
     public IReadOnlyList<EngineTagViewModel> EngineTags { get; }
@@ -62,10 +61,14 @@ public sealed class SkillRowViewModel : ObservableObject
     public bool ShowInstall => !IsCompanion && !IsInstalled;
     public bool ShowOpenFolder => IsInstalled;
     public bool ShowCompanionHint => Definition.IsProjectCopy && Definition.CompanionSkills.Count > 0;
-    public bool ShowBranchPicker => Branches.Count > 0;
-    public bool ShowGitStatus => Git.State is not SkillGitState.Unknown and not SkillGitState.NotInstalled
-        || !string.IsNullOrWhiteSpace(Git.Message);
-    public bool ShowLocalChanges => Git.Changes.Count > 0;
+    public bool ShowBranchPicker => !IsRouting && Branches.Count > 0;
+    public bool ShowGitActions => !IsRouting;
+    public bool ShowGitStatus => !IsRouting
+        && (Git.State is not SkillGitState.Unknown and not SkillGitState.NotInstalled
+            || !string.IsNullOrWhiteSpace(Git.Message));
+    public bool ShowLocalChanges => IsRouting ? Routing.Changes.Count > 0 : Git.Changes.Count > 0;
+    public bool ShowSourceSync => IsRouting;
+    public bool ShowSourceStatus => IsRouting && !IsLoading;
     public bool ShowBranchWarning => !string.IsNullOrWhiteSpace(Git.Warning);
     public string CompanionHint => SkillRowPresentation.CompanionHint(Definition);
     public string ParentHint => SkillRowPresentation.ParentHint(Definition);
@@ -85,7 +88,16 @@ public sealed class SkillRowViewModel : ObservableObject
                 Raise(nameof(LoadText));
                 Raise(nameof(CanPull));
                 Raise(nameof(CanPush));
+                Raise(nameof(CanCommit));
                 Raise(nameof(CanApplyUpdate));
+                Raise(nameof(CanInitGit));
+                Raise(nameof(ShowInitGit));
+                Raise(nameof(CanChangeBranch));
+                Raise(nameof(ShowGitActions));
+                Raise(nameof(ShowSourceSync));
+                Raise(nameof(ShowSourceStatus));
+                Raise(nameof(CanSyncFromSource));
+                Raise(nameof(CanSyncToSource));
             }
         }
     }
@@ -103,6 +115,8 @@ public sealed class SkillRowViewModel : ObservableObject
             Raise(nameof(ShowOpenFolder));
             Raise(nameof(InstallFolder));
             Raise(nameof(InstallSummary));
+            Raise(nameof(CanSyncFromSource));
+            Raise(nameof(CanSyncToSource));
         }
     }
 
@@ -131,6 +145,12 @@ public sealed class SkillRowViewModel : ObservableObject
         {
             if (SetProperty(ref _selectedBranch, value ?? "") && !_suppressBranch)
             {
+                if (Git.State is SkillGitState.Unknown or SkillGitState.Checking)
+                {
+                    return;
+                }
+
+                _userPickedBranch = true;
                 SelectedBranchChanged?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -153,19 +173,54 @@ public sealed class SkillRowViewModel : ObservableObject
             Raise(nameof(PushLabel));
             Raise(nameof(CanPull));
             Raise(nameof(CanPush));
+            Raise(nameof(CanCommit));
             Raise(nameof(CanApplyUpdate));
+            Raise(nameof(CanInitGit));
+            Raise(nameof(ShowInitGit));
+            Raise(nameof(CanChangeBranch));
             Raise(nameof(IsLoading));
             Raise(nameof(LoadText));
+            Raise(nameof(ShowGitActions));
+            Raise(nameof(ShowSourceStatus));
+            Raise(nameof(ShowSourceSync));
+        }
+    }
+
+    public RoutingSkillAlign Routing
+    {
+        get => _routing;
+        private set
+        {
+            _routing = value;
+            Raise();
+            Raise(nameof(SourceStatusText));
+            Raise(nameof(SourceStatusTone));
+            Raise(nameof(ShowSourceStatus));
+            Raise(nameof(ShowSourceSync));
+            Raise(nameof(CanSyncFromSource));
+            Raise(nameof(CanSyncToSource));
+            Raise(nameof(ShowLocalChanges));
+            Raise(nameof(LocalChangesText));
         }
     }
 
     public bool IsInstalled => Installs.Any(item => item.Installed);
     public bool IsInstalledManaged => Installs.Any(item => item.Installed && item.Managed);
     public bool IsLoading =>
-        Access.State == AccessState.Checking || Git.State == SkillGitState.Checking;
-    public bool CanApplyUpdate => SkillGitPresentation.CanPull(Git, Access.CanInstall);
+        !string.IsNullOrWhiteSpace(_loadText)
+        || Access.State == AccessState.Checking
+        || Git.State == SkillGitState.Checking;
+    public bool GitReady => Git.State != SkillGitState.NeedsAttach;
+    public bool CanApplyUpdate => !IsRouting && GitReady && SkillGitPresentation.CanPull(Git, Access.CanInstall);
     public bool CanPull => CanApplyUpdate;
-    public bool CanPush => SkillGitPresentation.CanPush(Git, Access.CanInstall, _allowGitPush, _allowGitCommit);
+    public bool CanPush => !IsRouting && GitReady && SkillGitPresentation.CanPush(Git, Access.CanInstall, _allowGitPush);
+    public bool CanCommit => !IsRouting && GitReady && SkillGitPresentation.CanCommit(Git, Access.CanInstall, _allowGitCommit);
+    public bool ShowInitGit => !IsRouting && Git.State == SkillGitState.NeedsAttach;
+    public bool CanInitGit => ShowInitGit && Access.CanInstall && !Git.Forbidden;
+    public bool HasUserPickedBranch => _userPickedBranch;
+    public bool CanChangeBranch => !IsRouting && GitReady && !IsLoading;
+    public bool CanSyncFromSource => IsRouting && Routing.SourceExists;
+    public bool CanSyncToSource => IsRouting && (Routing.DestExists || IsInstalled);
     public string InstallFolder =>
         Installs.FirstOrDefault(item => item.Installed)?.Path ?? "";
     public string LoadText => !string.IsNullOrWhiteSpace(_loadText)
@@ -173,7 +228,7 @@ public sealed class SkillRowViewModel : ObservableObject
         : Access.State == AccessState.Checking
             ? "正在检查权限…"
             : Git.State == SkillGitState.Checking
-                ? "正在对照 Git…"
+                ? IsRouting ? "对照路由源…" : "正在对照 Git…"
                 : "";
     public double LoadProgress => _loadProgress;
 
@@ -182,8 +237,18 @@ public sealed class SkillRowViewModel : ObservableObject
         : Git.Message;
 
     public BadgeAppearance GitStatusTone => SkillGitPresentation.Tone(Git.State);
-    public string LocalChangesText => SkillRowPresentation.LocalChanges(Git);
+    public string SourceStatusText => Routing.Summary;
+    public BadgeAppearance SourceStatusTone =>
+        !Routing.SourceExists
+            ? BadgeAppearance.Warning
+            : Routing.Changes.Count == 0 && Routing.DestExists
+                ? BadgeAppearance.Success
+                : BadgeAppearance.Warning;
+    public string LocalChangesText => IsRouting
+        ? SkillRowPresentation.LocalChanges(Routing.Changes)
+        : SkillRowPresentation.LocalChanges(Git);
     public string PullLabel => SkillGitPresentation.PullLabel(Git);
+    public string CommitLabel => "Commit";
     public string PushLabel => SkillGitPresentation.PushLabel(Git);
     public bool ShowDetails => Access.State is AccessState.Accessible or AccessState.Checking or AccessState.Unknown;
     public bool DeniedOnly => Access.State is AccessState.NoPermission
@@ -201,6 +266,8 @@ public sealed class SkillRowViewModel : ObservableObject
         _allowGitPush = allowPush;
         _allowGitCommit = allowCommit;
         Raise(nameof(CanPush));
+        Raise(nameof(CanCommit));
+        Raise(nameof(CanInitGit));
     }
 
     public void SetScan(string text, int percent)
@@ -209,6 +276,20 @@ public sealed class SkillRowViewModel : ObservableObject
         _loadProgress = Math.Clamp(percent, 0, 100);
         Raise(nameof(LoadText));
         Raise(nameof(LoadProgress));
+        Raise(nameof(IsLoading));
+        Raise(nameof(ShowSourceStatus));
+        Raise(nameof(CanChangeBranch));
+    }
+
+    public void ClearScan()
+    {
+        _loadText = "";
+        _loadProgress = 0;
+        Raise(nameof(LoadText));
+        Raise(nameof(LoadProgress));
+        Raise(nameof(IsLoading));
+        Raise(nameof(ShowSourceStatus));
+        Raise(nameof(CanChangeBranch));
     }
 
     public void MarkGitChecking()
@@ -223,29 +304,62 @@ public sealed class SkillRowViewModel : ObservableObject
         };
     }
 
+    public void ApplyRouting(RoutingSkillAlign align)
+    {
+        Routing = align;
+        ApplyGit(SkillGitStatus.Empty);
+        Raise(nameof(ShowSourceStatus));
+        Raise(nameof(CanSyncFromSource));
+        Raise(nameof(CanSyncToSource));
+    }
+
     public void ApplyGit(SkillGitStatus status)
     {
         _suppressBranch = true;
         try
         {
-            Branches.Clear();
-            foreach (var branch in status.Branches)
+            if (status.Branches.Count > 0)
             {
-                if (!string.IsNullOrWhiteSpace(branch)
-                    && !Branches.Contains(branch, StringComparer.OrdinalIgnoreCase))
+                foreach (var branch in status.Branches)
                 {
-                    Branches.Add(branch);
+                    if (!string.IsNullOrWhiteSpace(branch)
+                        && !Branches.Contains(branch, StringComparer.OrdinalIgnoreCase))
+                    {
+                        Branches.Add(branch);
+                    }
+                }
+
+                for (var i = Branches.Count - 1; i >= 0; i--)
+                {
+                    if (!status.Branches.Contains(Branches[i], StringComparer.OrdinalIgnoreCase))
+                    {
+                        Branches.RemoveAt(i);
+                    }
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(status.TargetBranch))
+            _userPickedBranch = false;
+            var shown = status.InstalledBranch;
+            if (string.IsNullOrWhiteSpace(shown))
             {
-                _selectedBranch = status.TargetBranch;
-                Raise(nameof(SelectedBranch));
+                shown = status.TargetBranch;
             }
 
+            if (!string.IsNullOrWhiteSpace(shown))
+            {
+                _selectedBranch = shown;
+            }
+
+            Raise(nameof(SelectedBranch));
+
             Git = status;
+            _loadText = "";
+            _loadProgress = 0;
             Raise(nameof(ShowBranchPicker));
+            Raise(nameof(CanChangeBranch));
+            Raise(nameof(LoadText));
+            Raise(nameof(LoadProgress));
+            RefreshInstallSummary();
         }
         finally
         {
@@ -278,10 +392,13 @@ public sealed class SkillRowViewModel : ObservableObject
                 return $"{item.Root}: 未安装";
             }
 
-            var shortCommit = item.Commit.Length >= 7 ? item.Commit[..7] : item.Commit;
-            var branch = string.IsNullOrWhiteSpace(item.Branch) ? "" : item.Branch + " · ";
+            var shownBranch = !string.IsNullOrWhiteSpace(Git.InstalledBranch) ? Git.InstalledBranch : item.Branch;
+            var shortCommit = !string.IsNullOrWhiteSpace(Git.InstalledCommit)
+                ? (Git.InstalledCommit.Length >= 7 ? Git.InstalledCommit[..7] : Git.InstalledCommit)
+                : (item.Commit.Length >= 7 ? item.Commit[..7] : item.Commit);
+            var branch = string.IsNullOrWhiteSpace(shownBranch) ? "" : shownBranch + " · ";
             var extra = string.IsNullOrWhiteSpace(shortCommit)
-                ? (string.IsNullOrWhiteSpace(item.Branch) ? "已安装" : item.Branch)
+                ? (string.IsNullOrWhiteSpace(shownBranch) ? "已安装" : shownBranch)
                 : branch + shortCommit;
             return $"{item.Root}: {extra}";
         });
@@ -293,9 +410,33 @@ public sealed class SkillRowViewModel : ObservableObject
                 : summary;
     }
 
-    private static string SkillGitRecommend(SkillDefinition definition)
+    public void RevertBranchToInstalled()
     {
-        return MlsmoonSkillManager.Core.Services.SkillGit.RecommendBranch(definition, null, null);
+        _suppressBranch = true;
+        try
+        {
+            _userPickedBranch = false;
+            var fallback = Git.InstalledBranch;
+            if (string.IsNullOrWhiteSpace(fallback))
+            {
+                fallback = Git.TargetBranch;
+            }
+
+            if (!string.IsNullOrWhiteSpace(fallback))
+            {
+                _selectedBranch = fallback;
+                Raise(nameof(SelectedBranch));
+            }
+        }
+        finally
+        {
+            _suppressBranch = false;
+        }
+    }
+
+    public void ClearUserBranchPick()
+    {
+        _userPickedBranch = false;
     }
 }
 

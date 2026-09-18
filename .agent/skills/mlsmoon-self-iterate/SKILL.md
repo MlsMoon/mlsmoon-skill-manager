@@ -23,7 +23,7 @@ description: 收工时同步模块 skill，并按可读性看待单文件体量�
 4. 新约定写进**那一个**模块 skill。路由表只加一行链接。
 5. 出现新模块（新的职责面，不是多一个 helper）：新建 skill，登记到 `mlsmoon-skill-manager`。
 6. `Scripts\file_budget.bat`。超 300 行只是提醒：职责已经混在一起、读不下去时再拆。
-7. 要验收时读 `mlsmoon-verify`，开子 agent 跑 `-t`。
+7. 改了 `src/` 或 `Scripts/`：读 `mlsmoon-verify`。先在对话里写出建议的 `-t` 级别并询问；用户没点名就按建议跑（通常至少 `-t -build`）。不要干等。默认不必开子 agent；只有用户点名或安装 / catalog / 工作区 Git / `ui_flow` 覆盖路径真的变了才开，且只带对得上的 `-t` 旗标
 
 ## 行数
 

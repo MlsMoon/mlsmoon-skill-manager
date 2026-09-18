@@ -93,4 +93,4 @@ Package 放在同文件的 `packages` 数组，和 Plugin 同一套字段（`ins
 - `installPath` 含 `..` 或逃出工作区
 - 本仓库维护 skill 写进公开 catalog
 
-安装路径和 companion 行为见 `mlsmoon-install`。探测 NAS 见 `mlsmoon-access`。改完跑 `-t -catalog`。
+安装路径和 companion 行为见 `mlsmoon-install`。探测 NAS 见 `mlsmoon-access`。公开清单或合并规则变了再按 `mlsmoon-verify` 跑 `-t -catalog`。

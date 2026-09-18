@@ -93,4 +93,4 @@ DEV（`rundev` / Debug / `--dev`）关掉整条应用更新：设置没有「更
 6. 不要 force push `release`，不要改 AppId，不要把未打 tag 的 develop 构建当成正式更新源
 7. 不要让 `release.yml` 再开 `generate_release_notes: true`
 
-改完跑 `-t -release`。界面进度条见 `mlsmoon-ui`。
+发版清单或 `VERSION` / changelog / `release.yml` 变了再按 `mlsmoon-verify` 跑 `-t -release`。界面进度条见 `mlsmoon-ui`。
