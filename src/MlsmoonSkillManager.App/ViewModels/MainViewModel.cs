@@ -20,6 +20,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly GhCli _gh;
     private readonly GitRemote _git;
     private readonly SkillInstaller _installer;
+    private readonly WorkspaceRepo _workspaceRepo;
     private readonly SkillGit _skillGit;
     private readonly UpdateService _updater;
     private readonly UserSettings _settings;
@@ -48,6 +49,11 @@ public sealed class MainViewModel : ObservableObject
     private string _conflictText = "";
     private string _conflictFolder = "";
     private bool _showRepoLinks;
+    private bool _allowGitPush;
+    private bool _allowGitCommit;
+    private bool _isCommitOpen;
+    private string _commitMessage = "";
+    private SkillRowViewModel? _commitRow;
     private bool _suppressRootEvents;
     private GhAccountStatus _account = new();
     private SkillCatalogScan _scan = null!;
@@ -62,6 +68,7 @@ public sealed class MainViewModel : ObservableObject
         _gh = new GhCli(_runner);
         _git = new GitRemote(_runner);
         _installer = new SkillInstaller(_paths, _gh, _runner);
+        _workspaceRepo = new WorkspaceRepo(_runner);
         _skillGit = new SkillGit(_paths, _gh, _git);
         _updater = new UpdateService();
         _settings = _settingsStore.Load();
@@ -99,9 +106,13 @@ public sealed class MainViewModel : ObservableObject
         SelectWorkspaceCommand = new RelayCommand(p => SelectWorkspace(p as WorkspaceItemViewModel));
         RemoveWorkspaceCommand = new RelayCommand(p => RemoveWorkspace(p as WorkspaceItemViewModel));
         RefreshCommand = new RelayCommand(async _ => await RefreshAsync().ConfigureAwait(true), _ => !Busy);
-        InstallCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, false).ConfigureAwait(true), CanMutate);
-        PullCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel pull && pull.CanPull);
-        PushCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel push && push.CanPush);
+        InstallCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel).ConfigureAwait(true), CanMutate);
+        PullCommand = new RelayCommand(async p => await PullAsync(p as SkillRowViewModel).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel pull && pull.CanPull);
+        PushCommand = new RelayCommand(async p => await PushAsync(p as SkillRowViewModel).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel push && push.CanPush);
+        NasLoginCommand = new RelayCommand(async p => await NasLoginAsync(p as string).ConfigureAwait(true), _ => !Busy);
+        NasLogoutCommand = new RelayCommand(_ => NasLogout(), _ => GitSsh.HasLogin);
+        ConfirmCommitCommand = new RelayCommand(async _ => await ConfirmCommitAsync().ConfigureAwait(true), _ => CanConfirmCommit);
+        CloseCommitCommand = new RelayCommand(_ => IsCommitOpen = false);
         UninstallCommand = new RelayCommand(async p => await UninstallAsync(p as SkillRowViewModel).ConfigureAwait(true), CanMutate);
         OpenInstallFolderCommand = new RelayCommand(
             p => OpenPath(p switch
@@ -118,7 +129,10 @@ public sealed class MainViewModel : ObservableObject
         SelectSettingsTabCommand = new RelayCommand(p => SelectSettingsTab(p as SettingsTabViewModel));
         _showRepoLinks = _settings.ShowRepoLinks;
         _autoCheckUpdates = _settings.AutoCheckUpdates;
+        _allowGitPush = _settings.AllowGitPush;
+        _allowGitCommit = _settings.AllowGitCommit;
         _nasUser = string.IsNullOrWhiteSpace(_settings.NasUser) ? Environment.UserName : _settings.NasUser;
+        ApplyGitWriteFlags();
         OpenSettingsCommand = new RelayCommand(_ => IsSettingsOpen = true);
         CloseSettingsCommand = new RelayCommand(_ => IsSettingsOpen = false);
         OpenLogCommand = new RelayCommand(_ =>
@@ -183,6 +197,10 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand InstallCommand { get; }
     public RelayCommand PullCommand { get; }
     public RelayCommand PushCommand { get; }
+    public RelayCommand NasLoginCommand { get; }
+    public RelayCommand NasLogoutCommand { get; }
+    public RelayCommand ConfirmCommitCommand { get; }
+    public RelayCommand CloseCommitCommand { get; }
     public RelayCommand UninstallCommand { get; }
     public RelayCommand SelectThemeCommand { get; }
     public RelayCommand SelectSettingsTabCommand { get; }
@@ -225,6 +243,7 @@ public sealed class MainViewModel : ObservableObject
     public BadgeAppearance GhTone => SkillRowViewModel.ToneFor(_ghState);
     public BadgeAppearance IgpTone => SkillRowViewModel.ToneFor(_igpState);
     public BadgeAppearance NasTone => SkillRowViewModel.ToneFor(_nasState);
+    public BadgeAppearance NasLoginTone => NasLoggedIn ? BadgeAppearance.Success : BadgeAppearance.Warning;
 
     public string SettingsTab
     {
@@ -322,9 +341,66 @@ public sealed class MainViewModel : ObservableObject
             {
                 _settings.NasUser = _nasUser;
                 SaveSettings();
+                Raise(nameof(NasLoginStatus));
             }
         }
     }
+
+    public bool NasLoggedIn => GitSsh.HasLogin;
+
+    public string NasLoginStatus => NasLoggedIn
+        ? $"已用 {NasUser} 登录。安装 / Pull / Push 会自动带上这份 SSH 凭据。"
+        : "未登录。局域网仓库若要密码，先在下面登录，不要只填 Windows 用户名。";
+
+    public bool AllowGitPush
+    {
+        get => _allowGitPush;
+        set
+        {
+            if (SetProperty(ref _allowGitPush, value))
+            {
+                _settings.AllowGitPush = value;
+                SaveSettings();
+                ApplyGitWriteFlags();
+            }
+        }
+    }
+
+    public bool AllowGitCommit
+    {
+        get => _allowGitCommit;
+        set
+        {
+            if (SetProperty(ref _allowGitCommit, value))
+            {
+                _settings.AllowGitCommit = value;
+                SaveSettings();
+                ApplyGitWriteFlags();
+            }
+        }
+    }
+
+    public bool IsCommitOpen
+    {
+        get => _isCommitOpen;
+        set => SetProperty(ref _isCommitOpen, value);
+    }
+
+    public string CommitMessage
+    {
+        get => _commitMessage;
+        set
+        {
+            if (SetProperty(ref _commitMessage, value))
+            {
+                ConfirmCommitCommand?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool CanConfirmCommit =>
+        !Busy && _commitRow is not null && !string.IsNullOrWhiteSpace(CommitMessage);
+
     public bool HasWorkspaces => Workspaces.Count > 0;
     public bool HasOpenWorkspace =>
         !string.IsNullOrWhiteSpace(WorkspacePath) && Directory.Exists(WorkspacePath);
@@ -439,8 +515,12 @@ public sealed class MainViewModel : ObservableObject
             {
                 RefreshCommand.RaiseCanExecuteChanged();
                 InstallCommand.RaiseCanExecuteChanged();
-                PullCommand.RaiseCanExecuteChanged(); PushCommand.RaiseCanExecuteChanged();
+                PullCommand.RaiseCanExecuteChanged();
+                PushCommand.RaiseCanExecuteChanged();
                 UninstallCommand.RaiseCanExecuteChanged();
+                NasLoginCommand?.RaiseCanExecuteChanged();
+                ConfirmCommitCommand?.RaiseCanExecuteChanged();
+                Raise(nameof(CanConfirmCommit));
             }
         }
     }
@@ -596,7 +676,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private async Task InstallAsync(SkillRowViewModel? row, bool update)
+    private async Task InstallAsync(SkillRowViewModel? row)
     {
         if (row is null || !TryBeginMutation(row, requireAccess: true, out var roots))
         {
@@ -606,7 +686,7 @@ public sealed class MainViewModel : ObservableObject
         Busy = true;
         try
         {
-            if (row.IsCompanion && !update)
+            if (row.IsCompanion)
             {
                 Log($"{row.Name} 是随附 Skill，请安装所属 Plugin，不能单独当 Skill 安装。");
                 return;
@@ -621,13 +701,8 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
-            if (update && !CanAutoUpdate(row))
-            {
-                return;
-            }
-
             var branchNote = string.IsNullOrWhiteSpace(row.SelectedBranch) ? "" : $"（{row.SelectedBranch}）";
-            Log($"{(update ? "更新" : "安装")} {row.Name}{branchNote}");
+            Log($"安装 {row.Name}{branchNote}");
             await _installer.InstallAsync(row.Definition, WorkspacePath, roots, Log, NasUser, row.SelectedBranch)
                 .ConfigureAwait(true);
             _skillGit.ClearCaches();
@@ -642,6 +717,242 @@ public sealed class MainViewModel : ObservableObject
         {
             Busy = false;
         }
+    }
+
+    private async Task PullAsync(SkillRowViewModel? row)
+    {
+        if (row is null || !TryBeginMutation(row, requireAccess: true, out var roots))
+        {
+            return;
+        }
+
+        if (SkillGit.IsForbiddenBranch(
+                row.Definition,
+                UnityWorkspace.ReadEditorVersion(WorkspacePath),
+                row.SelectedBranch))
+        {
+            Log($"{row.Name}: Unity 6 不能使用 master 上的 URP 14，请改选 urp-17.5。");
+            return;
+        }
+
+        if (!CanAutoUpdate(row))
+        {
+            return;
+        }
+
+        Busy = true;
+        try
+        {
+            var branchNote = string.IsNullOrWhiteSpace(row.SelectedBranch) ? "" : $"（{row.SelectedBranch}）";
+            Log($"Pull {row.Name}{branchNote}");
+            var dest = row.InstallFolder;
+            if (WorkspaceRepo.CanAttach(row.Definition)
+                && !string.IsNullOrWhiteSpace(dest)
+                && WorkspaceGit.HasRepo(dest))
+            {
+                var origin = WorkspaceRepo.OriginUrl(row.Definition, NasUser)
+                             ?? throw new InvalidOperationException("没有远端地址。");
+                await _workspaceRepo.EnsureAttachedAsync(dest, origin, row.SelectedBranch, Log)
+                    .ConfigureAwait(true);
+                await _workspaceRepo.FastForwardAsync(dest, row.SelectedBranch).ConfigureAwait(true);
+            }
+            else
+            {
+                await _installer.InstallAsync(row.Definition, WorkspacePath, roots, Log, NasUser, row.SelectedBranch)
+                    .ConfigureAwait(true);
+            }
+
+            _skillGit.ClearCaches();
+            Log($"完成 {row.Name}");
+            RefreshInstallStatuses();
+        }
+        catch (Exception ex)
+        {
+            Log($"失败: {ex.Message}");
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private async Task PushAsync(SkillRowViewModel? row)
+    {
+        if (row is null || !TryBeginMutation(row, requireAccess: true, out _))
+        {
+            return;
+        }
+
+        if (!AllowGitPush)
+        {
+            Log("请在设置「连接」里打开「允许 Push」。");
+            return;
+        }
+
+        if (row.Git.Forbidden)
+        {
+            Log($"{row.Name}: {row.Git.Warning}");
+            return;
+        }
+
+        var dest = row.InstallFolder;
+        if (string.IsNullOrWhiteSpace(dest) || !WorkspaceGit.HasRepo(dest))
+        {
+            Log($"{row.Name} 安装目录没有 .git，先安装或 Pull 接上远端。");
+            return;
+        }
+
+        if (row.Git.State == SkillGitState.LocalChanges && AllowGitCommit)
+        {
+            _commitRow = row;
+            CommitMessage = "";
+            IsCommitOpen = true;
+            Raise(nameof(CanConfirmCommit));
+            ConfirmCommitCommand.RaiseCanExecuteChanged();
+            return;
+        }
+
+        await PushExistingAsync(row, dest).ConfigureAwait(true);
+    }
+
+    private async Task ConfirmCommitAsync()
+    {
+        var row = _commitRow;
+        if (row is null || string.IsNullOrWhiteSpace(CommitMessage))
+        {
+            Log("请填写提交说明。");
+            return;
+        }
+
+        var dest = row.InstallFolder;
+        Busy = true;
+        try
+        {
+            Log($"Commit {row.Name}");
+            await _workspaceRepo.CommitAsync(dest, CommitMessage).ConfigureAwait(true);
+            IsCommitOpen = false;
+            await PushExistingAsync(row, dest, alreadyBusy: true).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            Log($"失败: {ex.Message}");
+            Busy = false;
+        }
+    }
+
+    private async Task PushExistingAsync(SkillRowViewModel row, string dest, bool alreadyBusy = false)
+    {
+        if (!alreadyBusy)
+        {
+            Busy = true;
+        }
+
+        try
+        {
+            var branch = string.IsNullOrWhiteSpace(row.SelectedBranch) ? row.Git.InstalledBranch : row.SelectedBranch;
+            Log($"Push {row.Name}（{branch}）");
+            var origin = WorkspaceRepo.OriginUrl(row.Definition, NasUser);
+            if (!string.IsNullOrWhiteSpace(origin))
+            {
+                await _workspaceRepo.EnsureAttachedAsync(dest, origin, branch, Log, fetch: false)
+                    .ConfigureAwait(true);
+            }
+
+            await _workspaceRepo.PushAsync(dest, branch).ConfigureAwait(true);
+            _skillGit.ClearCaches();
+            Log($"完成 {row.Name}");
+            RefreshInstallStatuses();
+        }
+        catch (Exception ex)
+        {
+            Log($"失败: {ex.Message}");
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private async Task NasLoginAsync(string? password)
+    {
+        if (string.IsNullOrWhiteSpace(NasUser))
+        {
+            Log("请填写 NAS SSH 用户名（ssh:// 后面 @ 前面那段，不是 Windows 用户名）。");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            Log("请填写 NAS SSH 密码。");
+            return;
+        }
+
+        Busy = true;
+        try
+        {
+            NasCredentials.Save(NasUser, password);
+            var lan = AllSkills.Select(item => item.Definition).FirstOrDefault(item => item.IsLan);
+            if (lan is null)
+            {
+                Log($"已保存 NAS 用户 {NasUser}。清单里还没有局域网条目，无法当场验证。");
+                NotifyNasLogin();
+                return;
+            }
+
+            var access = await _git.CheckLanAccessAsync(lan, NasUser).ConfigureAwait(true);
+            if (access.State != AccessState.Accessible)
+            {
+                NasCredentials.Delete();
+                GitSsh.ClearAskpass();
+                Log("NAS 登录失败: " + access.Message);
+                NotifyNasLogin();
+                return;
+            }
+
+            Log($"NAS 已登录（{NasUser}）。之后的安装 / Pull / Push 会自动带上这份凭据。");
+            NotifyNasLogin();
+            _skillGit.ClearCaches();
+            await _scan.RefreshAccessAsync().ConfigureAwait(true);
+            RefreshInstallStatuses();
+        }
+        catch (Exception ex)
+        {
+            NasCredentials.Delete();
+            GitSsh.ClearAskpass();
+            Log("NAS 登录失败: " + ex.Message);
+            NotifyNasLogin();
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private void NasLogout()
+    {
+        NasCredentials.Delete();
+        GitSsh.ClearAskpass();
+        Log("已退出 NAS 登录。");
+        NotifyNasLogin();
+        _ = RefreshAsync();
+    }
+
+    private void NotifyNasLogin()
+    {
+        Raise(nameof(NasLoggedIn));
+        Raise(nameof(NasLoginStatus));
+        Raise(nameof(NasLoginTone));
+        NasLogoutCommand?.RaiseCanExecuteChanged();
+    }
+
+    private void ApplyGitWriteFlags()
+    {
+        foreach (var row in AllSkills)
+        {
+            row.SetGitWriteFlags(AllowGitPush, AllowGitCommit);
+        }
+
+        PushCommand?.RaiseCanExecuteChanged();
     }
 
     private Task UninstallAsync(SkillRowViewModel? row)
@@ -755,6 +1066,11 @@ public sealed class MainViewModel : ObservableObject
 
     private void RefreshInstallStatuses(bool inspectGit = true)
     {
+        foreach (var row in AllSkills)
+        {
+            row.ApplyDisplay();
+        }
+
         var roots = SkillRoots.Normalize(SelectedRootNames()).ToList();
 
         foreach (var row in AllSkills)
@@ -1055,6 +1371,8 @@ public sealed class MainViewModel : ObservableObject
         _settings.SelectedRoots = SelectedRootNames();
         _settings.Theme = ThemeResolver.Normalize(_settings.Theme);
         _settings.NasUser = NasUser;
+        _settings.AllowGitPush = AllowGitPush;
+        _settings.AllowGitCommit = AllowGitCommit;
         _settings.AutoCheckUpdates = AutoCheckUpdates;
         WorkspaceBook.Dedup(_settings);
         _settingsStore.Save(_settings);
@@ -1120,6 +1438,9 @@ public sealed class MainViewModel : ObservableObject
         text.AppendLine($"LAN: {IgpStatus}");
         text.AppendLine($"NAS: {NasStatus}");
         text.AppendLine($"NAS user: {NasUser}");
+        text.AppendLine($"NAS login: {(NasLoggedIn ? "yes" : "no")}");
+        text.AppendLine($"Git push: {(AllowGitPush ? "on" : "off")}");
+        text.AppendLine($"Git commit: {(AllowGitCommit ? "on" : "off")}");
         text.AppendLine($"App update: {UpdateStatus}");
         text.AppendLine($"Config: {_paths.ConfigDirectory}");
         text.AppendLine($"Cache: {_paths.CacheDirectory}");

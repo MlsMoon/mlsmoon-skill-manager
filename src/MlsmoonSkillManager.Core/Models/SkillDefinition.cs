@@ -62,7 +62,7 @@ public sealed class SkillDefinition
         string.IsNullOrWhiteSpace(SourcePath) ? "." : SourcePath;
 
     public bool IsRepoRoot =>
-        !IsProjectCopy && ResolvedSourcePath is "." or "./";
+        !IsCompanion && ResolvedSourcePath is "." or "./";
 
     public string ResolvedInstallPath
     {

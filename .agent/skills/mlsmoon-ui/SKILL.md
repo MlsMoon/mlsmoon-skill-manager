@@ -37,7 +37,7 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 
 `AppDialog` 左侧是 Tab：外观、连接、更新、位置、关于、日志。不要再把主题/日志/连接摊在标题栏或主窗口状态栏。
 
-- **连接**：见 `mlsmoon-access`。GitHub / 局域网 / NAS
+- **连接**：见 `mlsmoon-access`。GitHub / 局域网 / NAS。NAS 登录用 PasswordBox（不要绑定明文到 settings）。「允许 Push / Commit」两个勾选在这个 Tab
 - **更新**：见 `mlsmoon-release`。仅非 DEV。下载进度条。DEV 不出现这个 Tab，也不检查 / 下载 / 覆盖安装，齿轮不标「新」
 - Card 宽固定（`CardMinWidth` = `CardMaxWidth`），切 Tab 不能改宽度
 - 日志默认只在状态栏留末行；全文在设置「日志」Tab

@@ -34,6 +34,10 @@ public static class SkillGitPresentation
     public static bool CanPull(SkillGitStatus git, bool canInstall) =>
         canInstall && git.CanUpdate;
 
-    public static bool CanPush(SkillGitStatus git, bool canInstall) =>
-        canInstall && git.State == SkillGitState.Ahead;
+    public static bool CanPush(SkillGitStatus git, bool canInstall, bool allowPush, bool allowCommit) =>
+        canInstall
+        && allowPush
+        && !git.Forbidden
+        && (git.State == SkillGitState.Ahead
+            || allowCommit && git.State == SkillGitState.LocalChanges);
 }

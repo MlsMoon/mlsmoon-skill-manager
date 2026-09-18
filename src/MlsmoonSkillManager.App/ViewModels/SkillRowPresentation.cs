@@ -34,7 +34,7 @@ public static class SkillRowPresentation
         AccessState.NoPermission => string.IsNullOrWhiteSpace(access.Message) ? "当前无权限访问" : access.Message,
         AccessState.OffNetwork => "不在该局域网",
         AccessState.Unreachable => "NAS 不可达",
-        AccessState.NeedsAuth => "NAS 需要 SSH 密码或密钥",
+        AccessState.NeedsAuth => "NAS 需要在设置里登录 SSH",
         AccessState.GhMissing => "未检测到 gh",
         AccessState.GhNotLoggedIn => "gh 未登录",
         _ => "待检查"

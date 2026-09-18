@@ -20,7 +20,7 @@ public static class GitUpdateGuard
                 showDialog = false;
                 return true;
             case SkillGitState.Ahead:
-                message = $"{row.Name} 本机超前远端。↑ Push 不会把提交推到远端，只是说明工作区超前。";
+                message = $"{row.Name} 本机超前远端。↓ Pull 不会快进。打开设置里的「允许 Push」后用 ↑ Push。";
                 showDialog = true;
                 return true;
             case SkillGitState.Diverged:
@@ -38,7 +38,7 @@ public static class GitUpdateGuard
                 showDialog = true;
                 return true;
             case SkillGitState.LocalChanges:
-                message = $"{row.Name} 远端没有新提交，但工作区有本地修改。应用不会覆盖这些改动，请手动处理。";
+                message = $"{row.Name} 远端没有新提交，但工作区有本地修改。↓ Pull 不会覆盖。打开设置里的「允许 Commit」后可用 ↑ Push 提交。";
                 showDialog = true;
                 return true;
             default:

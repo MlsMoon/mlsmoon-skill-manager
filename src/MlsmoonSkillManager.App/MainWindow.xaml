@@ -354,13 +354,41 @@
                             <ui:FieldRow Header="NAS" LabelWidth="80">
                                 <ui:StatusLabel Text="{Binding NasStatus}" Tone="{Binding NasTone}"/>
                             </ui:FieldRow>
-                            <ui:FieldRow Header="NAS 用户" LabelWidth="80" Margin="0">
+                            <ui:FieldRow Header="NAS 用户" LabelWidth="80">
                                 <TextBox Text="{Binding NasUser, UpdateSourceTrigger=PropertyChanged}"
                                          MinWidth="160"/>
                             </ui:FieldRow>
+                            <ui:FieldRow Header="NAS 密码" LabelWidth="80">
+                                <PasswordBox x:Name="NasPasswordBox" MinWidth="160"/>
+                            </ui:FieldRow>
+                            <ui:FieldRow Header="登录" LabelWidth="80">
+                                <ui:StatusLabel Text="{Binding NasLoginStatus}"
+                                                Tone="{Binding NasLoginTone}"/>
+                            </ui:FieldRow>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Style="{StaticResource PrimaryButton}"
+                                        Content="登录 NAS"
+                                        AutomationProperties.Name="登录 NAS"
+                                        Click="OnNasLoginClick"/>
+                                <Button Style="{StaticResource GhostButton}"
+                                        Content="退出登录"
+                                        Command="{Binding NasLogoutCommand}"
+                                        Visibility="{Binding NasLoggedIn, Converter={StaticResource VisibleIfTrue}}"/>
+                            </StackPanel>
+                            <ui:FieldRow Header="写入" LabelWidth="80" Margin="0">
+                                <StackPanel>
+                                    <CheckBox IsChecked="{Binding AllowGitPush, Mode=TwoWay}"
+                                              Content="允许 Push（把本机提交推到远端）"
+                                              Margin="0,0,0,6"/>
+                                    <CheckBox IsChecked="{Binding AllowGitCommit, Mode=TwoWay}"
+                                              Content="允许 Commit（↑ Push 可先提交工作区改动）"
+                                              Margin="0"/>
+                                </StackPanel>
+                            </ui:FieldRow>
                             <TextBlock Style="{StaticResource Caption}"
                                        Margin="0,6,0,8"
-                                       Text="NAS 网络可达但 SSH 要密码或密钥时，会显示「需要密码或密钥」，这和完全连不上不是一回事。应用不会弹出密码。"/>
+                                       TextWrapping="Wrap"
+                                       Text="NAS 用户名是 ssh://后面 @ 前面那段，不是 Windows 用户名。密码只进 Windows 凭据管理器，不写 settings.json。登录后安装 / Pull / Push 自动带凭据。↑ Push 和 Commit 默认关闭，需在上面打开。"/>
                             <Button Style="{StaticResource PrimaryButton}"
                                     Content="重新检查连接"
                                     HorizontalAlignment="Left"
@@ -511,6 +539,27 @@
                       SecondaryCommand="{Binding OpenConflictFolderCommand}">
             <TextBlock TextWrapping="Wrap"
                        Text="{Binding ConflictText}"/>
+        </ui:AppDialog>
+
+        <ui:AppDialog Grid.RowSpan="2"
+                      Header="提交并 Push"
+                      CardMaxWidth="520"
+                      IsOpen="{Binding IsCommitOpen, Mode=TwoWay}"
+                      PrimaryText="取消">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap"
+                           Style="{StaticResource Caption}"
+                           Text="会把安装目录里的改动提交到 git，再 Push 到远端。"/>
+                <TextBox Margin="0,8,0,8"
+                         MinHeight="72"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         Text="{Binding CommitMessage, UpdateSourceTrigger=PropertyChanged}"/>
+                <Button Style="{StaticResource PrimaryButton}"
+                        Content="提交并 Push"
+                        HorizontalAlignment="Left"
+                        Command="{Binding ConfirmCommitCommand}"/>
+            </StackPanel>
         </ui:AppDialog>
 
         <ui:AppDialog Grid.RowSpan="2"

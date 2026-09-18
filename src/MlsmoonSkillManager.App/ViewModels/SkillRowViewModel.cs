@@ -15,6 +15,8 @@ public sealed class SkillRowViewModel : ObservableObject
     private IReadOnlyList<RootInstallStatus> _installs = [];
     private SkillGitStatus _git = SkillGitStatus.Empty;
     private bool _suppressBranch;
+    private bool _allowGitPush;
+    private bool _allowGitCommit;
 
     public SkillRowViewModel(SkillDefinition definition)
     {
@@ -163,7 +165,7 @@ public sealed class SkillRowViewModel : ObservableObject
         Access.State == AccessState.Checking || Git.State == SkillGitState.Checking;
     public bool CanApplyUpdate => SkillGitPresentation.CanPull(Git, Access.CanInstall);
     public bool CanPull => CanApplyUpdate;
-    public bool CanPush => SkillGitPresentation.CanPush(Git, Access.CanInstall);
+    public bool CanPush => SkillGitPresentation.CanPush(Git, Access.CanInstall, _allowGitPush, _allowGitCommit);
     public string InstallFolder =>
         Installs.FirstOrDefault(item => item.Installed)?.Path ?? "";
     public string LoadText => !string.IsNullOrWhiteSpace(_loadText)
@@ -193,6 +195,13 @@ public sealed class SkillRowViewModel : ObservableObject
     public string AccessText => SkillRowPresentation.AccessText(Access);
     public BadgeAppearance AccessTone => SkillRowPresentation.AccessTone(Access.State);
     public static BadgeAppearance ToneFor(AccessState state) => SkillRowPresentation.AccessTone(state);
+
+    public void SetGitWriteFlags(bool allowPush, bool allowCommit)
+    {
+        _allowGitPush = allowPush;
+        _allowGitCommit = allowCommit;
+        Raise(nameof(CanPush));
+    }
 
     public void SetScan(string text, int percent)
     {
@@ -250,6 +259,8 @@ public sealed class SkillRowViewModel : ObservableObject
         Raise(nameof(Description));
         Raise(nameof(ParentHint));
         Raise(nameof(CompanionHint));
+        Raise(nameof(ShowCompanionHint));
+        Raise(nameof(KindLabel));
     }
 
     public void RefreshInstallSummary()

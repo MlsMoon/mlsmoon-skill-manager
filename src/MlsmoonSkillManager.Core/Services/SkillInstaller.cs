@@ -12,6 +12,7 @@ public sealed class SkillInstaller
     private readonly AppPaths _paths;
     private readonly GhCli _gh;
     private readonly GitRemote _git;
+    private readonly WorkspaceRepo _workspaceRepo;
     private readonly SkillCopyInstall _skillCopy;
 
     public SkillInstaller(AppPaths paths, GhCli gh, IProcessRunner? runner = null)
@@ -20,7 +21,8 @@ public sealed class SkillInstaller
         _gh = gh;
         var process = runner ?? new ProcessRunner();
         _git = new GitRemote(process);
-        _skillCopy = new SkillCopyInstall(paths, gh, new WorkspaceRepo(process));
+        _workspaceRepo = new WorkspaceRepo(process);
+        _skillCopy = new SkillCopyInstall(paths, gh, _workspaceRepo);
     }
 
     public async Task InstallAsync(
@@ -34,7 +36,7 @@ public sealed class SkillInstaller
     {
         if (skill.IsLan)
         {
-            await new LanSkillInstall(_paths, _git)
+            await new LanSkillInstall(_paths, _git, _workspaceRepo)
                 .RunAsync(skill, workspacePath, nasUser, branch, log, cancellationToken)
                 .ConfigureAwait(false);
             return;
@@ -65,7 +67,9 @@ public sealed class SkillInstaller
             var dest = ResolvePluginDestination(workspacePath, skill);
             WarnIfNotUnityProject(workspacePath, log);
             log?.Invoke($"安装 {skill.KindLabel} {skill.DisplayName} → {skill.ResolvedInstallPath}（{resolvedBranch}）");
-            SkillCopy.Replace(source, dest, ProjectCopy.SkipNames);
+            await _workspaceRepo.SyncSkillAsync(
+                    source, dest, repo.HttpsUrl, resolvedBranch, log, cancellationToken)
+                .ConfigureAwait(false);
             WriteMarker(dest, marker, ProjectCopy.MarkerFileName(skill));
             WriteSnapshot(workspacePath, skill.Id, skill.ResolvedInstallPath, dest, commit, resolvedBranch);
             await _skillCopy.InstallCompanionsAsync(
@@ -194,7 +198,7 @@ public sealed class SkillInstaller
         IReadOnlyList<string> roots,
         Action<string>? log)
     {
-        foreach (var root in SkillRoots.Expand(roots))
+        foreach (var root in SkillRoots.Normalize(roots))
         {
             var dest = WorkspaceScanner.SkillInstallPath(workspacePath, root, skill.ResolvedInstallName);
             if (!Directory.Exists(dest))

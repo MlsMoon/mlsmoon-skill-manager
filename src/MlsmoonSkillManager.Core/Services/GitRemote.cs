@@ -4,11 +4,7 @@ namespace MlsmoonSkillManager.Core.Services;
 
 public sealed class GitRemote
 {
-    private static readonly Dictionary<string, string> QuietGit = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["GIT_TERMINAL_PROMPT"] = "0",
-        ["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new"
-    };
+    private static IReadOnlyDictionary<string, string> QuietGit => GitSsh.Variables();
 
     private readonly IProcessRunner _runner;
 
@@ -99,7 +95,9 @@ public sealed class GitRemote
             Message = state switch
             {
                 AccessState.NeedsAuth =>
-                    "NAS 可达，但 SSH 需要密码或密钥。应用不会弹出密码，请先配好密钥，或在终端执行 ssh。",
+                    GitSsh.HasLogin
+                        ? "NAS 可达，但当前保存的 SSH 密码或用户名不对。"
+                        : "NAS 可达，但 SSH 需要密码。请在设置「连接」里登录 NAS。",
                 AccessState.Unreachable => "NAS 在探测时可达，但 git 连不上，请再试一次。",
                 _ => "NAS 无访问权限。检查用户名、仓库路径和 SSH 配置。"
             }

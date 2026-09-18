@@ -65,5 +65,7 @@ public sealed class UserSettings
     public string Theme { get; set; } = "System";
     public bool ShowRepoLinks { get; set; } = true;
     public string NasUser { get; set; } = "";
+    public bool AllowGitPush { get; set; }
+    public bool AllowGitCommit { get; set; }
     public bool AutoCheckUpdates { get; set; } = true;
 }

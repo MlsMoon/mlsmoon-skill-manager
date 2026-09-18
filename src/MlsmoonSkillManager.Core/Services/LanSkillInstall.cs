@@ -6,11 +6,13 @@ public sealed class LanSkillInstall
 {
     private readonly AppPaths _paths;
     private readonly GitRemote _git;
+    private readonly WorkspaceRepo _workspaceRepo;
 
-    public LanSkillInstall(AppPaths paths, GitRemote git)
+    public LanSkillInstall(AppPaths paths, GitRemote git, WorkspaceRepo workspaceRepo)
     {
         _paths = paths;
         _git = git;
+        _workspaceRepo = workspaceRepo;
     }
 
     public async Task RunAsync(
@@ -37,12 +39,17 @@ public sealed class LanSkillInstall
         _paths.EnsureWritable();
         await _git.CloneOrUpdateAsync(url, cache, branch.Name, log, cancellationToken).ConfigureAwait(false);
         var source = SkillInstaller.ResolveSource(cache, skill.ResolvedSourcePath, skill.DisplayName, requireSkillMarkdown: false);
-        var commit = await _git.ReadHeadCommitAsync(cache, cancellationToken).ConfigureAwait(false);
         var dest = SkillInstaller.ResolvePluginDestination(workspacePath, skill);
         SkillInstaller.WarnIfNotUnityProject(workspacePath, log);
-        log?.Invoke($"安装 {skill.DisplayName} → {skill.ResolvedInstallPath}（不含 .git）");
-        SkillCopy.Replace(source, dest, ProjectCopy.SkipNames);
-        SkillInstaller.WriteMarker(dest, SkillInstaller.CreateMarker(skill, url, commit, branch.Name), ProjectCopy.MarkerFileName(skill));
+        log?.Invoke($"安装 {skill.DisplayName} → {skill.ResolvedInstallPath}（含 .git）");
+        await _workspaceRepo.SyncSkillAsync(
+                source, dest, url, branch.Name, log, cancellationToken)
+            .ConfigureAwait(false);
+        var commit = await _git.ReadHeadCommitAsync(
+                WorkspaceGit.HasRepo(dest) ? dest : cache, cancellationToken)
+            .ConfigureAwait(false);
+        var marker = SkillInstaller.CreateMarker(skill, url, commit, branch.Name);
+        SkillInstaller.WriteMarker(dest, marker, ProjectCopy.MarkerFileName(skill));
         InstallSnapshot.Write(_paths.SnapshotPath(workspacePath, skill.Id, skill.ResolvedInstallPath), dest, commit, branch.Name);
         if (branch.Manifest.Count > 0)
         {

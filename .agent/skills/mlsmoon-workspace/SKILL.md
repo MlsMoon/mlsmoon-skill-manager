@@ -20,10 +20,12 @@ description: 维护工作区列表、安装根选择、卡片 Git 状态与冲�
 
 - 没有打开有效工作区时只能浏览清单，不能安装 / 更新 / 卸载
 - 打开有效工作区后，对照已托管条目的安装快照和远端：列出工作区改过的文件、本机与远端谁超前、当前分支。卡片上可选分支。启动只跑一轮权限+对照：构造函数只装工作区，窗口 Loaded 再扫；不要先对照完再扫第二遍
-- 对照用 GitHub `compare` / `merge-base`，不要只看 SHA 是否不同。卡片按钮对照 VS Code：**↓ Pull** / **↑ Push** 常驻，可点时强调色，不可点时灰。不要按状态藏按钮，也不要写「更新到远端」。↑ Push 只说明超前，还不真的推远端
-- 有本地修改且本机落后或已分叉（或想换分支但工作区不干净）算 **冲突**：只提示，不自动更新，用户在安装目录里手动处理
+- 对照用 GitHub `compare` / `merge-base`，不要只看 SHA 是否不同。卡片按钮对照 VS Code：**↓ Pull** / **↑ Push** 常驻，可点时强调色，不可点时灰。不要按状态藏按钮，也不要写「更新到远端」
+- ↓ Pull：安装目录有 `.git` 时 `fetch` + `merge --ff-only`，禁止整目录删除重拷
+- ↑ Push：设置「连接」里打开 **允许 Push** 后才可点。真的 `git push origin <branch>`。有本地改动且打开了 **允许 Commit** 时先弹出提交说明再 commit + push
+- 有本地修改且本机落后或已分叉（或想换分支但工作区不干净）算 **冲突**：只提示，不自动更新
 
-Skill 安装目录（`sourcePath` 为仓库根）是真正的 git 仓库。没有 `.git` 就 `init` 并接上 catalog 的 `origin`，再 `fetch`。↓ Pull 在该目录里快进，禁止整目录删除重拷。Plugin / Package 仍从缓存拷文件、不留 `.git`。
+`sourcePath` 为仓库根的 Skill / Plugin / Package（不含 companion）安装目录是真正的 git 仓库。没有 `.git` 就从缓存带上 `.git`，或 `init` 并接上 catalog 的 `origin`，再 `fetch`。
 
 ## 卡片状态
 
@@ -31,7 +33,7 @@ Skill 安装目录（`sourcePath` 为仓库根）是真正的 git 仓库。没�
 
 对照顺序：
 
-1. Skill 仓库根：对照前先 `EnsureAttached` + `fetch`（没有 `.git` 就补）
+1. 仓库根：对照前先 `EnsureAttached` + `fetch`（没有 `.git` 就补）。Plugin / Package 同样如此
 2. 工作区文件树 vs 远端 tip。优先 `git diff --quiet`；否则用本机缓存哈希（忽略 `.git`、标记等）
 3. 树相同 → `Current`。HEAD 若还旧，只把 HEAD 快进到远端，不改文件。AppData 记快照，**不要**为对齐去写工作区标记
 4. 树不同再比本机 SHA（工作区 HEAD 优先，其次标记）
@@ -55,7 +57,7 @@ Skill 安装目录（`sourcePath` 为仓库根）是真正的 git 仓库。没�
 | 提交不同但无法判断 | `Unclear` | 无法判断谁新 |
 | 其余已装且干净 | `Current` | 已与远端对齐 |
 
-`CanUpdate` / **↓ Pull** 仅 `Behind` 或 `BranchSwitch`。**↑ Push** 只在 `Ahead` 可点，用来说明不能推远端。分叉、无法判断都不要快进覆盖。冲突只弹说明。
+`CanUpdate` / **↓ Pull** 仅 `Behind` 或 `BranchSwitch`。**↑ Push** 仅设置打开了允许 Push，且状态为 `Ahead`，或（允许 Commit 且 `LocalChanges`）。分叉、无法判断、冲突都不要快进覆盖。冲突只弹说明。
 
 本地改动来自快照对照，不是 `git status`。快照在 `%AppData%\MlsmoonSkillManager\snapshots\`。
 
@@ -67,7 +69,7 @@ Skill 安装目录（`sourcePath` 为仓库根）是真正的 git 仓库。没�
 
 - 移除工作区时删磁盘上的项目
 - 冲突时自动 checkout / 覆盖
-- 整目录删掉带 `.git` 的 Skill 再重拷
+- 整目录删掉带 `.git` 的安装目录再重拷
 - 把空 SHA 直接当成可 Pull
 - 为迁入/去重再堆 xUnit（已有 `WorkspaceBookTests` 只当工具跑）
 

@@ -47,10 +47,26 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (vm.IsCommitOpen)
+        {
+            vm.CloseCommitCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         if (vm.IsSettingsOpen)
         {
             vm.CloseSettingsCommand.Execute(null);
             e.Handled = true;
+        }
+    }
+
+    private void OnNasLoginClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.NasLoginCommand.Execute(NasPasswordBox.Password);
+            NasPasswordBox.Clear();
         }
     }
 

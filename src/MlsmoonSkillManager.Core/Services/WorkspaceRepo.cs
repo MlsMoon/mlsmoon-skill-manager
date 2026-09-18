@@ -4,11 +4,7 @@ namespace MlsmoonSkillManager.Core.Services;
 
 public sealed class WorkspaceRepo
 {
-    private static readonly Dictionary<string, string> QuietGit = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["GIT_TERMINAL_PROMPT"] = "0",
-        ["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new"
-    };
+    private static IReadOnlyDictionary<string, string> QuietGit => GitSsh.Variables();
 
     private static readonly string[] MarkerNames =
     [
@@ -50,7 +46,8 @@ public sealed class WorkspaceRepo
         string originUrl,
         string branch,
         Action<string>? log,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool fetch = true)
     {
         if (!Directory.Exists(directory) || string.IsNullOrWhiteSpace(originUrl))
         {
@@ -65,6 +62,11 @@ public sealed class WorkspaceRepo
 
         await EnsureOriginAsync(directory, originUrl, cancellationToken).ConfigureAwait(false);
         ExcludeMarkers(directory);
+        if (!fetch)
+        {
+            return;
+        }
+
         await FetchAsync(directory, branch, cancellationToken).ConfigureAwait(false);
         await AlignHeadIfMatchAsync(directory, branch, cancellationToken).ConfigureAwait(false);
     }
@@ -174,18 +176,67 @@ public sealed class WorkspaceRepo
         string originUrl,
         string branch,
         Action<string>? log,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ISet<string>? extraSkip = null)
     {
-        if (Directory.Exists(dest))
+        if (WorkspaceGit.HasRepo(dest))
         {
-            log?.Invoke("在安装目录里 fetch 并快进。");
+            log?.Invoke("安装目录已有 .git，fetch 并快进。");
             await EnsureAttachedAsync(dest, originUrl, branch, log, cancellationToken).ConfigureAwait(false);
             await FastForwardAsync(dest, branch, cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        SkillCopy.Replace(source, dest, includeGit: true);
+        log?.Invoke("复制仓库（含 .git）");
+        SkillCopy.Replace(source, dest, extraSkip, includeGit: true);
         await EnsureAttachedAsync(dest, originUrl, branch, log, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task CommitAsync(
+        string directory,
+        string message,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            throw new InvalidOperationException("请填写提交说明。");
+        }
+
+        if (!WorkspaceGit.HasRepo(directory))
+        {
+            throw new InvalidOperationException("安装目录还不是 git 仓库，无法提交。");
+        }
+
+        await RunGitAsync(directory, ["add", "-A"], cancellationToken, required: true).ConfigureAwait(false);
+        var commit = await RunGitAsync(directory, ["commit", "-m", message.Trim()], cancellationToken)
+            .ConfigureAwait(false);
+        if (!commit.Success)
+        {
+            throw new InvalidOperationException("提交失败：" + FirstLine(commit.StdErr, commit.StdOut));
+        }
+    }
+
+    public async Task PushAsync(
+        string directory,
+        string branch,
+        CancellationToken cancellationToken = default)
+    {
+        if (!WorkspaceGit.HasRepo(directory))
+        {
+            throw new InvalidOperationException("安装目录还不是 git 仓库，无法 Push。");
+        }
+
+        if (string.IsNullOrWhiteSpace(branch))
+        {
+            throw new InvalidOperationException("没有分支，无法 Push。");
+        }
+
+        var push = await RunGitAsync(directory, ["push", "-u", "origin", branch], cancellationToken)
+            .ConfigureAwait(false);
+        if (!push.Success)
+        {
+            throw new InvalidOperationException("Push 失败：" + FirstLine(push.StdErr, push.StdOut));
+        }
     }
 
     private async Task EnsureOriginAsync(string directory, string originUrl, CancellationToken cancellationToken)
