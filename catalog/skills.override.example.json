@@ -30,26 +30,28 @@
           "installName": "your-plugin-use"
         }
       ]
-    },
+    }
+  ],
+  "packages": [
     {
-      "id": "your-lan-plugin",
-      "name": "YourLanPlugin",
+      "id": "your-lan-package",
+      "name": "YourLanPackage",
       "source": "lan",
       "repo": "ssh://<nas-host>:<git-path>",
       "host": "<nas-host>",
       "gitPath": "<git-path>",
       "readmePath": "Readme.md",
-      "description": "局域网包的字段格式。真实 host 只写同目录已被 gitignore 的 skills.override.json。",
+      "description": "局域网 Package 的字段格式。真实 host 只写同目录已被 gitignore 的 skills.override.json。",
       "sourcePath": ".",
-      "installName": "YourLanPlugin",
-      "installPath": "Packages/YourLanPlugin",
+      "installName": "YourLanPackage",
+      "installPath": "Packages/YourLanPackage",
       "engines": ["unity"],
       "branches": [
         {
           "name": "main",
           "unity": "6000",
           "manifest": {
-            "com.example.lan": "file:YourLanPlugin/com.example.lan"
+            "com.example.lan": "file:YourLanPackage/com.example.lan"
           }
         }
       ]

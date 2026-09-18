@@ -17,6 +17,8 @@ description: 维护 WPF 主题、通用控件、设置对话框、单实例与�
 - 自定义控件必须盖掉 WPF 默认 `ControlBrush`（浅色系统底），不要露出系统白底
 - 新界面先拼 `Controls/` 里的控件，不要在 `MainWindow.xaml` 再画一套卡片边框
 - 扫描 / 对照 Git 时 `ItemCard` 整卡是 0–100 进度条（`IsLoading` + `LoadText` + `LoadProgress`）：留下条目名、当前步骤文案和百分比。不要用扫光动画冒充进度，也不要只在卡片正文里写「正在对照」
+- 卡片权限（可访问 / public / 无权限）跟 Kind、引擎一样用 `Badge`，不要在标题右侧挂裸绿色 `StatusLabel`
+- Kind 角标：Skill / Plugin / Package 分开。Package 用 `BadgeAppearance.Package`，不要再标成 Plugin 或只写「局域网」
 
 ## 控件
 

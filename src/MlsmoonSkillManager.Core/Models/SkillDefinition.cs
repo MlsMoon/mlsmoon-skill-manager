@@ -6,6 +6,7 @@ public sealed class SkillCatalogFile
     public string Owner { get; set; } = "MlsMoon";
     public List<SkillDefinition> Skills { get; set; } = [];
     public List<SkillDefinition> Plugins { get; set; } = [];
+    public List<SkillDefinition> Packages { get; set; } = [];
 }
 
 public sealed class SkillDefinition
@@ -40,7 +41,19 @@ public sealed class SkillDefinition
 
     public bool IsPlugin => Kind == ToolKind.Plugin;
 
+    public bool IsPackage => Kind == ToolKind.Package;
+
+    public bool IsProjectCopy => IsPlugin || IsPackage;
+
     public bool IsCompanion => Kind == ToolKind.Companion;
+
+    public string KindLabel => Kind switch
+    {
+        ToolKind.Package => "Package",
+        ToolKind.Plugin => "Plugin",
+        ToolKind.Companion => "随附 Skill",
+        _ => "Skill"
+    };
 
     public string ResolvedInstallName =>
         string.IsNullOrWhiteSpace(InstallName) ? Id : InstallName;
@@ -58,9 +71,11 @@ public sealed class SkillDefinition
                     .Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
 
-            return IsPlugin
-                ? Path.Combine("Assets", "Plugins", ResolvedInstallName)
-                : ResolvedInstallName;
+            return IsPackage
+                ? Path.Combine("Packages", ResolvedInstallName)
+                : IsPlugin
+                    ? Path.Combine("Assets", "Plugins", ResolvedInstallName)
+                    : ResolvedInstallName;
         }
     }
 

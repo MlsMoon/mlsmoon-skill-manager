@@ -114,12 +114,12 @@ public sealed class SkillGitStatus
                 ? $"已与远端对齐{(string.IsNullOrWhiteSpace(branch) ? "" : " · " + branch)}"
                 : $"已与远端对齐 · {branch} · {local}",
             SkillGitState.Behind => compare.BehindBy > 0
-                ? $"本机落后远端 {compare.BehindBy} 个提交{Nl}{commits}"
-                : $"本机落后远端{Nl}{commits}",
+                ? $"↓ Pull · 本机落后远端 {compare.BehindBy} 个提交{Nl}{commits}"
+                : $"↓ Pull · 本机落后远端{Nl}{commits}",
             SkillGitState.Ahead => compare.AheadBy > 0
-                ? $"本机超前远端 {compare.AheadBy} 个提交，不用更新{Nl}{commits}"
-                : $"本机超前远端，不用更新{Nl}{commits}",
-            SkillGitState.Diverged => $"本机与远端已分叉，不能快进更新{Nl}{commits}",
+                ? $"↑ Push · 本机超前远端 {compare.AheadBy} 个提交{Nl}{commits}"
+                : $"↑ Push · 本机超前远端{Nl}{commits}",
+            SkillGitState.Diverged => ArrowCounts(compare) + " · 已分叉，不能快进" + Nl + commits,
             SkillGitState.Unclear => !hasRemote
                 ? canReachRemote ? "未能读取远端提交" : "尚未对照远端"
                 : $"本机与远端提交不同，无法判断谁新{Nl}{commits}",
@@ -142,6 +142,13 @@ public sealed class SkillGitStatus
         }
 
         return sha.Length >= 7 ? sha[..7] : sha;
+    }
+
+    private static string ArrowCounts(CommitCompare compare)
+    {
+        var down = compare.BehindBy > 0 ? $"↓ {compare.BehindBy}" : "↓";
+        var up = compare.AheadBy > 0 ? $"↑ {compare.AheadBy}" : "↑";
+        return down + "  " + up;
     }
 
     private static string FormatCommits(string local, string remote, string branch)

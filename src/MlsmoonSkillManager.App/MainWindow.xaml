@@ -114,7 +114,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <TextBlock Margin="0,4,0,0" Style="{StaticResource Caption}"
-                                           Text="Plugin 固定安装到工作区的 Assets/Plugins，不受上面勾选影响。"/>
+                                           Text="Plugin 装到 Assets/Plugins，Package 装到 Packages，都不受上面勾选影响。"/>
                             </StackPanel>
                         </ui:FieldRow>
                     </StackPanel>
@@ -186,12 +186,11 @@
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
+                                                <ui:Badge Content="{Binding AccessText}"
+                                                          Appearance="{Binding AccessTone}"
+                                                          Margin="0,0,6,0"/>
                                             </StackPanel>
                                         </ui:ItemCard.Badge>
-                                        <ui:ItemCard.Status>
-                                            <ui:StatusLabel Text="{Binding AccessText}"
-                                                            Tone="{Binding AccessTone}"/>
-                                        </ui:ItemCard.Status>
                                         <ui:ItemCard.Actions>
                                             <StackPanel Orientation="Horizontal"
                                                         Visibility="{Binding DataContext.HasOpenWorkspace, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleIfTrue}}">
@@ -200,11 +199,8 @@
                                                         Visibility="{Binding ShowInstall, Converter={StaticResource VisibleIfTrue}}"
                                                         Command="{Binding DataContext.InstallCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Style="{StaticResource GhostButton}"
-                                                        Content="{Binding UpdateLabel}"
-                                                        Visibility="{Binding ShowUpdate, Converter={StaticResource VisibleIfTrue}}"
-                                                        Command="{Binding DataContext.UpdateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource GitDirButton}" Content="{Binding PullLabel}" IsEnabled="{Binding CanPull}" Command="{Binding DataContext.PullCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                                <Button Style="{StaticResource GitDirButton}" Content="{Binding PushLabel}" IsEnabled="{Binding CanPush}" Command="{Binding DataContext.PushCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                                 <Button Style="{StaticResource GhostButton}" Content="打开目录"
                                                         Visibility="{Binding ShowOpenFolder, Converter={StaticResource VisibleIfTrue}}"
                                                         Command="{Binding DataContext.OpenInstallFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"

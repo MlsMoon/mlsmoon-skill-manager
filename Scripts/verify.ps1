@@ -55,6 +55,7 @@ if ($tags -contains "catalog") {
         $catalog = Get-Content -Raw -Encoding UTF8 $path | ConvertFrom-Json
         $skills = @($catalog.skills)
         $plugins = @($catalog.plugins)
+        $packages = @($catalog.packages)
         $ids = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($item in $skills) {
             Assert-True (-not [string]::IsNullOrWhiteSpace($item.id)) "skill missing id"
@@ -62,13 +63,13 @@ if ($tags -contains "catalog") {
         }
 
         $companionIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        foreach ($plugin in $plugins) {
-            Assert-True (-not [string]::IsNullOrWhiteSpace($plugin.id)) "plugin missing id"
-            Assert-True ($ids.Add([string]$plugin.id)) "duplicate id: $($plugin.id)"
-            if ($plugin.installPath) {
-                Assert-True ($plugin.installPath -notmatch '\.\.') "installPath escapes workspace: $($plugin.installPath)"
+        foreach ($item in @($plugins) + @($packages)) {
+            Assert-True (-not [string]::IsNullOrWhiteSpace($item.id)) "plugin/package missing id"
+            Assert-True ($ids.Add([string]$item.id)) "duplicate id: $($item.id)"
+            if ($item.installPath) {
+                Assert-True ($item.installPath -notmatch '\.\.') "installPath escapes workspace: $($item.installPath)"
             }
-            foreach ($companion in @($plugin.companionSkills)) {
+            foreach ($companion in @($item.companionSkills)) {
                 Assert-True ($companionIds.Add([string]$companion.id)) "duplicate companion id: $($companion.id)"
                 $inSkills = $skills | Where-Object { $_.id -eq $companion.id }
                 Assert-True (-not $inSkills) "companion $($companion.id) must not be in skills[]"
@@ -78,7 +79,7 @@ if ($tags -contains "catalog") {
         $psd = $skills | Where-Object { $_.id -eq "open-psd-kit" } | Select-Object -First 1
         $model = $skills | Where-Object { $_.id -eq "3d-model-data-reader" } | Select-Object -First 1
         $spine = $plugins | Where-Object { $_.id -eq "spine-gpu-skinning" } | Select-Object -First 1
-        $lan = @($plugins) + @($skills) | Where-Object { $_.source -eq "lan" -or $_.host }
+        $lan = @($plugins) + @($packages) + @($skills) | Where-Object { $_.source -eq "lan" -or $_.host }
         Assert-True ($null -ne $psd) "open-psd-kit missing"
         Assert-True ($null -ne $model) "3d-model-data-reader missing"
         Assert-True ($null -ne $spine) "spine-gpu-skinning missing"
@@ -91,7 +92,7 @@ if ($tags -contains "catalog") {
         if ($LASTEXITCODE -eq 0 -and $leaks) {
             throw "public tree must not contain LAN host:`n$leaks"
         }
-        Write-Host "catalog ok: $($skills.Count) skills, $($plugins.Count) plugins, $($companionIds.Count) companions"
+        Write-Host "catalog ok: $($skills.Count) skills, $($plugins.Count) plugins, $($packages.Count) packages, $($companionIds.Count) companions"
     }
 }
 
@@ -139,6 +140,22 @@ if ($tags -contains "sync") {
         Assert-True ((Get-SkillGitState $true $true "same" $true) -eq "conflict") "dirty + branch switch must conflict"
         Assert-True ((Get-SkillGitState $true $false "same" $true) -eq "switch") "clean branch switch"
 
+        function Get-InspectCard([bool]$Installed, [bool]$TreeMatch, [bool]$TreeCompared, [bool]$UserGit, [string]$LocalSha, [string]$Relation, [bool]$Local) {
+            if (-not $Installed) { return "notinstalled" }
+            if ($TreeMatch) { return "current" }
+            if ([string]::IsNullOrWhiteSpace($LocalSha)) {
+                $Relation = $(if ($TreeCompared -and -not $UserGit) { "behind" } else { "unknown" })
+            }
+            $state = Get-SkillGitState $Installed $Local $Relation $false
+            if ($UserGit -and $state -in @("behind", "switch")) { return "unclear" }
+            return $state
+        }
+
+        Assert-True ((Get-InspectCard $true $true $true $true "" "behind" $false) -eq "current") "aligned tree is current even with empty sha"
+        Assert-True ((Get-InspectCard $true $false $false $false "" "behind" $false) -eq "unclear") "empty sha without tree compare is not behind"
+        Assert-True ((Get-InspectCard $true $false $true $false "" "unknown" $false) -eq "behind") "stale folder without git can pull"
+        Assert-True ((Get-InspectCard $true $false $true $true "abc" "behind" $false) -eq "unclear") "user git copy is not fast-forwarded"
+
         $git = Get-Command git -ErrorAction SilentlyContinue
         if (-not $git) {
             Write-Host "SKIP: git not installed"
@@ -171,7 +188,25 @@ if ($tags -contains "sync") {
             $ErrorActionPreference = $prev
             Assert-True ($diff -match "SKILL.md") "diff should see SKILL.md"
             Assert-True ($diff -match "extra.md") "diff should see extra.md"
-            Write-Host "sync ok: conflict policy + git ls-remote/diff"
+
+            $align = Join-Path $repo "align"
+            New-Item -ItemType Directory -Path $align | Out-Null
+            git -C $align init -q
+            Set-Content -Path (Join-Path $align "SKILL.md") -Value "v1" -Encoding utf8
+            git -C $align add SKILL.md
+            git -C $align -c user.email="dev@mlsmoon.local" -c user.name="verify" commit -qm "v1"
+            $old = (git -C $align rev-parse HEAD).Trim()
+            Set-Content -Path (Join-Path $align "SKILL.md") -Value "v2" -Encoding utf8
+            Set-Content -Path (Join-Path $align "new.md") -Value "added" -Encoding utf8
+            git -C $align add SKILL.md new.md
+            git -C $align -c user.email="dev@mlsmoon.local" -c user.name="verify" commit -qm "v2"
+            $tip = (git -C $align rev-parse HEAD).Trim()
+            git -C $align reset --soft $old
+            if ($LASTEXITCODE -ne 0) { throw "git reset --soft failed" }
+            git -C $align diff --quiet $tip
+            Assert-True ($LASTEXITCODE -eq 0) "working tree can match remote tip while HEAD is old"
+            Assert-True (((git -C $align rev-parse HEAD).Trim()) -eq $old) "HEAD should stay on old commit"
+            Write-Host "sync ok: conflict policy + git ls-remote/diff + tree align"
         }
         finally {
             if (Test-Path $repo) {

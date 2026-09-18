@@ -38,11 +38,11 @@ public sealed class WorkspaceScanner
         SkillDefinition skill,
         IEnumerable<string> roots)
     {
-        if (skill.IsPlugin)
+        if (skill.IsProjectCopy)
         {
             var relative = skill.ResolvedInstallPath;
             var path = SkillInstaller.ResolvePluginDestination(workspacePath, skill);
-            return [DescribeInstall(path, relative, SkillInstaller.PluginMarkerFileName)];
+            return [DescribeInstall(path, relative, SkillInstaller.PackageMarkerFileName, SkillInstaller.PluginMarkerFileName)];
         }
 
         var list = new List<RootInstallStatus>();
@@ -74,14 +74,16 @@ public sealed class WorkspaceScanner
             SkillInstaller.MarkerFileName);
     }
 
-    private static RootInstallStatus DescribeInstall(string path, string root, string markerFileName)
+    private static RootInstallStatus DescribeInstall(string path, string root, params string[] markerFileNames)
     {
-        var markerPath = Path.Combine(path, markerFileName);
+        var markerPath = markerFileNames
+            .Select(name => Path.Combine(path, name))
+            .FirstOrDefault(File.Exists);
         var installed = Directory.Exists(path);
-        var managed = installed && File.Exists(markerPath);
+        var managed = installed && markerPath is not null;
         var commit = "";
         var branch = "";
-        if (managed)
+        if (markerPath is not null)
         {
             try
             {
@@ -100,6 +102,7 @@ public sealed class WorkspaceScanner
             Root = root,
             Installed = installed,
             Managed = managed,
+            HasGit = installed && SkillCopy.HasGitRepo(path),
             Commit = commit,
             Branch = branch,
             Path = path

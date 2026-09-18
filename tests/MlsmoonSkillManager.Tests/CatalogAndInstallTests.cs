@@ -95,17 +95,21 @@ public class CatalogAndInstallTests
                 {
                   "version":1,
                   "skills":[{"id":"alpha","name":"alpha","repo":"https://github.com/MlsMoon/alpha"}],
-                  "plugins":[{"id":"spine-gpu-skinning","name":"SpineGpuSkinning","repo":"https://github.com/MlsMoon/SpineGpuSkinning","installName":"SpineGpuSkinning","installPath":"Assets/Plugins/SpineGpuSkinning"}]
+                  "plugins":[{"id":"spine-gpu-skinning","name":"SpineGpuSkinning","repo":"https://github.com/MlsMoon/SpineGpuSkinning","installName":"SpineGpuSkinning","installPath":"Assets/Plugins/SpineGpuSkinning"}],
+                  "packages":[{"id":"urp-package-igp","name":"UrpPackageIGP","repo":"https://github.com/MlsMoon/UrpPackageIGP","installName":"UrpPackageIGP"}]
                 }
                 """);
             var paths = new AppPaths(appDir, Path.Combine(root, "config"), Path.Combine(root, "cache"));
             var catalog = new CatalogStore(paths).Load();
-            Assert.Equal(2, catalog.Skills.Count);
+            Assert.Equal(3, catalog.Skills.Count);
             var skill = Assert.Single(catalog.Skills, s => s.Id == "alpha");
             Assert.Equal(ToolKind.Skill, skill.Kind);
             var plugin = Assert.Single(catalog.Skills, s => s.Id == "spine-gpu-skinning");
             Assert.Equal(ToolKind.Plugin, plugin.Kind);
             Assert.Equal(Path.Combine("Assets", "Plugins", "SpineGpuSkinning"), plugin.ResolvedInstallPath);
+            var package = Assert.Single(catalog.Skills, s => s.Id == "urp-package-igp");
+            Assert.Equal(ToolKind.Package, package.Kind);
+            Assert.Equal(Path.Combine("Packages", "UrpPackageIGP"), package.ResolvedInstallPath);
         }
         finally
         {
@@ -328,15 +332,7 @@ public class CatalogAndInstallTests
 
     private static void TryDelete(string path)
     {
-        try
-        {
-            if (Directory.Exists(path))
-            {
-                Directory.Delete(path, true);
-            }
-        }
-        catch (IOException)
-        {
-        }
+        try { if (Directory.Exists(path)) Directory.Delete(path, true); }
+        catch (IOException) { }
     }
 }

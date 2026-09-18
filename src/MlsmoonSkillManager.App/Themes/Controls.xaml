@@ -674,6 +674,17 @@
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
     </Style>
 
+    <Style x:Key="GitDirButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+        <Style.Triggers>
+            <Trigger Property="IsEnabled" Value="True">
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource FluentButton}">
         <Setter Property="Background" Value="{DynamicResource GhostBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource BadBrush}"/>
@@ -880,6 +891,10 @@
                 <Setter Property="Background" Value="{DynamicResource PluginSubtleBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource PluginBrush}"/>
             </Trigger>
+            <Trigger Property="Appearance" Value="Package">
+                <Setter Property="Background" Value="{DynamicResource PackageSubtleBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource PackageBrush}"/>
+            </Trigger>
             <Trigger Property="Appearance" Value="Universal">
                 <Setter Property="Background" Value="{DynamicResource GhostBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
@@ -900,12 +915,15 @@
                 <Setter Property="Padding" Value="6,1"/>
             </Trigger>
             <Trigger Property="Appearance" Value="Success">
+                <Setter Property="Background" Value="{DynamicResource OkSubtleBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
             </Trigger>
             <Trigger Property="Appearance" Value="Warning">
+                <Setter Property="Background" Value="{DynamicResource WarnSubtleBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
             </Trigger>
             <Trigger Property="Appearance" Value="Danger">
+                <Setter Property="Background" Value="{DynamicResource BadSubtleBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource BadBrush}"/>
             </Trigger>
         </Style.Triggers>

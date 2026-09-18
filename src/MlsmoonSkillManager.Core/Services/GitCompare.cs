@@ -24,15 +24,14 @@ public sealed class GitCompare
             return CommitCompare.Same;
         }
 
-        if (localSha.Equals(remoteSha, StringComparison.OrdinalIgnoreCase)
-            && !string.IsNullOrWhiteSpace(localSha))
+        if (string.IsNullOrWhiteSpace(localSha) || string.IsNullOrWhiteSpace(remoteSha))
         {
-            return CommitCompare.Same;
+            return CommitCompare.Unknown;
         }
 
-        if (string.IsNullOrWhiteSpace(localSha) && !string.IsNullOrWhiteSpace(remoteSha))
+        if (localSha.Equals(remoteSha, StringComparison.OrdinalIgnoreCase))
         {
-            return CommitCompare.Behind();
+            return CommitCompare.Same;
         }
 
         if (!skill.IsLan && RepoUrl.TryParse(skill.Repo, out var repo))

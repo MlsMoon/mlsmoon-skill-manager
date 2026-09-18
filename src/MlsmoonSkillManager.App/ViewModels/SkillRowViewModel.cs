@@ -55,9 +55,8 @@ public sealed class SkillRowViewModel : ObservableObject
         : string.Join(" · ", Definition.ResolvedEngines.Select(GameEngines.Label));
     public ObservableCollection<string> Branches { get; } = [];
     public bool ShowInstall => !IsCompanion && !IsInstalled;
-    public bool ShowUpdate => IsInstalled;
     public bool ShowOpenFolder => IsInstalled;
-    public bool ShowCompanionHint => IsPlugin && Definition.CompanionSkills.Count > 0;
+    public bool ShowCompanionHint => Definition.IsProjectCopy && Definition.CompanionSkills.Count > 0;
     public bool ShowBranchPicker => Branches.Count > 0;
     public bool ShowGitStatus => Git.State is not SkillGitState.Unknown and not SkillGitState.NotInstalled
         || !string.IsNullOrWhiteSpace(Git.Message);
@@ -79,6 +78,9 @@ public sealed class SkillRowViewModel : ObservableObject
                 Raise(nameof(DeniedOnly));
                 Raise(nameof(IsLoading));
                 Raise(nameof(LoadText));
+                Raise(nameof(CanPull));
+                Raise(nameof(CanPush));
+                Raise(nameof(CanApplyUpdate));
             }
         }
     }
@@ -93,7 +95,6 @@ public sealed class SkillRowViewModel : ObservableObject
             Raise(nameof(IsInstalled));
             Raise(nameof(IsInstalledManaged));
             Raise(nameof(ShowInstall));
-            Raise(nameof(ShowUpdate));
             Raise(nameof(ShowOpenFolder));
             Raise(nameof(InstallFolder));
             Raise(nameof(InstallSummary));
@@ -143,7 +144,10 @@ public sealed class SkillRowViewModel : ObservableObject
             Raise(nameof(ShowLocalChanges));
             Raise(nameof(ShowBranchWarning));
             Raise(nameof(LocalChangesText));
-            Raise(nameof(UpdateLabel));
+            Raise(nameof(PullLabel));
+            Raise(nameof(PushLabel));
+            Raise(nameof(CanPull));
+            Raise(nameof(CanPush));
             Raise(nameof(CanApplyUpdate));
             Raise(nameof(IsLoading));
             Raise(nameof(LoadText));
@@ -154,7 +158,9 @@ public sealed class SkillRowViewModel : ObservableObject
     public bool IsInstalledManaged => Installs.Any(item => item.Installed && item.Managed);
     public bool IsLoading =>
         Access.State == AccessState.Checking || Git.State == SkillGitState.Checking;
-    public bool CanApplyUpdate => Git.CanUpdate && Access.CanInstall;
+    public bool CanApplyUpdate => SkillGitPresentation.CanPull(Git, Access.CanInstall);
+    public bool CanPull => CanApplyUpdate;
+    public bool CanPush => SkillGitPresentation.CanPush(Git, Access.CanInstall);
     public string InstallFolder =>
         Installs.FirstOrDefault(item => item.Installed)?.Path ?? "";
     public string LoadText => !string.IsNullOrWhiteSpace(_loadText)
@@ -172,7 +178,8 @@ public sealed class SkillRowViewModel : ObservableObject
 
     public BadgeAppearance GitStatusTone => SkillGitPresentation.Tone(Git.State);
     public string LocalChangesText => SkillRowPresentation.LocalChanges(Git);
-    public string UpdateLabel => SkillGitPresentation.ActionLabel(Git.State);
+    public string PullLabel => SkillGitPresentation.PullLabel(Git);
+    public string PushLabel => SkillGitPresentation.PushLabel(Git);
     public bool ShowDetails => Access.State is AccessState.Accessible or AccessState.Checking or AccessState.Unknown;
     public bool DeniedOnly => Access.State is AccessState.NoPermission
         or AccessState.GhMissing

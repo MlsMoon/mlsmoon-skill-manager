@@ -4,5 +4,6 @@ public enum ToolKind
 {
     Skill,
     Plugin,
+    Package,
     Companion
 }

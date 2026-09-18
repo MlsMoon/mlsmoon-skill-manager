@@ -99,7 +99,8 @@ public sealed class MainViewModel : ObservableObject
         RemoveWorkspaceCommand = new RelayCommand(p => RemoveWorkspace(p as WorkspaceItemViewModel));
         RefreshCommand = new RelayCommand(async _ => await RefreshAsync().ConfigureAwait(true), _ => !Busy);
         InstallCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, false).ConfigureAwait(true), CanMutate);
-        UpdateCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), CanUpdate);
+        PullCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel pull && pull.CanPull);
+        PushCommand = new RelayCommand(async p => await InstallAsync(p as SkillRowViewModel, true).ConfigureAwait(true), p => CanMutate(p) && p is SkillRowViewModel push && push.CanPush);
         UninstallCommand = new RelayCommand(async p => await UninstallAsync(p as SkillRowViewModel).ConfigureAwait(true), CanMutate);
         OpenInstallFolderCommand = new RelayCommand(p => OpenPath((p as SkillRowViewModel)?.InstallFolder), p =>
             p is SkillRowViewModel row && !string.IsNullOrWhiteSpace(row.InstallFolder));
@@ -148,7 +149,7 @@ public sealed class MainViewModel : ObservableObject
             AllSkills, _gh, _git, _skillGit,
             () => NasUser, () => WorkspacePath, () => HasOpenWorkspace, Log,
             ApplyAccount, ApplyNoLanCatalog, ApplyLanProbe, ApplyNasAccess,
-            () => UpdateCommand.RaiseCanExecuteChanged());
+            () => { PullCommand.RaiseCanExecuteChanged(); PushCommand.RaiseCanExecuteChanged(); });
         ReloadWorkspaceItems();
         if (!string.IsNullOrWhiteSpace(WorkspacePath) && Directory.Exists(WorkspacePath))
         {
@@ -172,7 +173,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand RemoveWorkspaceCommand { get; }
     public RelayCommand RefreshCommand { get; }
     public RelayCommand InstallCommand { get; }
-    public RelayCommand UpdateCommand { get; }
+    public RelayCommand PullCommand { get; }
+    public RelayCommand PushCommand { get; }
     public RelayCommand UninstallCommand { get; }
     public RelayCommand SelectThemeCommand { get; }
     public RelayCommand SelectSettingsTabCommand { get; }
@@ -441,7 +443,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 RefreshCommand.RaiseCanExecuteChanged();
                 InstallCommand.RaiseCanExecuteChanged();
-                UpdateCommand.RaiseCanExecuteChanged();
+                PullCommand.RaiseCanExecuteChanged(); PushCommand.RaiseCanExecuteChanged();
                 UninstallCommand.RaiseCanExecuteChanged();
             }
         }
@@ -676,7 +678,7 @@ public sealed class MainViewModel : ObservableObject
             return false;
         }
 
-        if (!row.IsPlugin && roots.Count == 0)
+        if (!row.Definition.IsProjectCopy && roots.Count == 0)
         {
             Log($"请至少勾选一个 Skill 安装目标。默认建议 {SkillRoots.DefaultRoot}。");
             return false;
@@ -694,14 +696,6 @@ public sealed class MainViewModel : ObservableObject
     private bool CanMutate(object? parameter)
     {
         return !Busy && HasOpenWorkspace && parameter is SkillRowViewModel;
-    }
-
-    private bool CanUpdate(object? parameter)
-    {
-        return CanMutate(parameter)
-               && parameter is SkillRowViewModel row
-               && row.IsInstalled
-               && row.Access.CanInstall;
     }
 
     private bool CanAutoUpdate(SkillRowViewModel row)
@@ -749,7 +743,7 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(WorkspaceDisplay));
         Raise(nameof(BrowseOnlyHint));
         InstallCommand?.RaiseCanExecuteChanged();
-        UpdateCommand?.RaiseCanExecuteChanged();
+        PullCommand?.RaiseCanExecuteChanged(); PushCommand?.RaiseCanExecuteChanged();
         UninstallCommand?.RaiseCanExecuteChanged();
         OpenWorkspaceFolderCommand?.RaiseCanExecuteChanged();
         OpenInstallFolderCommand?.RaiseCanExecuteChanged();
@@ -1099,7 +1093,7 @@ public sealed class MainViewModel : ObservableObject
             }
             else
             {
-                File.WriteAllText(path, """{"version":1,"skills":[],"plugins":[]}""" + Environment.NewLine);
+                File.WriteAllText(path, """{"version":1,"skills":[],"plugins":[],"packages":[]}""" + Environment.NewLine);
             }
 
             Log($"已创建覆盖清单 {path}");

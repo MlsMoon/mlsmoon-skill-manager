@@ -1,6 +1,6 @@
 ---
 name: mlsmoon-catalog
-description: 维护公开 catalog、本机 override、引擎标记，以及新增 Skill / Plugin JSON。适用于改 catalog/skills.json、skills.override.json、engines、companion 是否进 skills 数组，或新增 MlsMoon 托管条目。
+description: 维护公开 catalog、本机 override、引擎标记，以及新增 Skill / Plugin / Package JSON。适用于改 catalog/skills.json、skills.override.json、engines、companion 是否进 skills 数组，或新增 MlsMoon 托管条目。
 ---
 
 # Catalog
@@ -11,13 +11,13 @@ description: 维护公开 catalog、本机 override、引擎标记，以及新�
 
 ## 文件
 
-- `catalog/skills.json`：公开 `skills` + `plugins`
+- `catalog/skills.json`：公开 `skills` + `plugins` + `packages`
 - `catalog/skills.override.example.json`：覆盖格式（可用公开仓库样例）
 - 真实覆盖：已 gitignore 的 `catalog/skills.override.json`；安装后的用户也可用 `%AppData%\MlsmoonSkillManager\skills.override.json`
 - 本地 `Scripts/build.ps1` / 安装包按本机 `catalog/` 原样打包，有 override 就打进去；文件本身不要提交
 - GitHub checkout 没有 override，所以 CI / GitHub Release 的包没有内网地址
 
-`CatalogStore` 先读捆绑 `skills.json`，再按 `id` 合并捆绑 override、仓库旁 override。`kind` 在加载时标成 skill / plugin；`companionSkills` 展开成 `ToolKind.Companion`，带 `ParentPluginId`。
+`CatalogStore` 先读捆绑 `skills.json`，再按 `id` 合并捆绑 override、仓库旁 override。`kind` 在加载时标成 skill / plugin / package；`companionSkills` 展开成 `ToolKind.Companion`，带 `ParentPluginId`（父级可以是 Plugin 或 Package）。
 
 ## 引擎
 
@@ -75,20 +75,22 @@ Plugin 放在同文件的 `plugins` 数组：
 
 Plugin **不要求** `SKILL.md`。公开的 SpineGpuSkinning 本体走 Plugin；`gpuspine-use-plugin` 与 `gpuspine-develop-plugin` 只能写在该 Plugin 的 `companionSkills` 里，不要再放进 `skills` 数组。
 
-局域网 Unity 包（不走 GitHub）只放 **用户 override**，示例用占位符，不要填真实地址：
+Package 放在同文件的 `packages` 数组，和 Plugin 同一套字段（`installPath`、`companionSkills`、局域网 `branches[].manifest`），**不要求** `SKILL.md`。默认装到 `Packages/{installName}`。IGP 的 `UrpPackageIGP` 只写本机 override 的 `packages`，不要放进 `plugins`。
+
+局域网 Unity 包（不走 GitHub）只放 **用户 override** 的 `packages`，示例用占位符，不要填真实地址：
 
 ```json
 {
-  "id": "your-lan-plugin",
-  "name": "YourLanPlugin",
+  "id": "your-lan-package",
+  "name": "YourLanPackage",
   "source": "lan",
   "repo": "ssh://<nas-host>:<git-path>",
   "host": "<nas-host>",
   "gitPath": "<git-path>",
-  "installPath": "Packages/YourLanPlugin",
+  "installPath": "Packages/YourLanPackage",
   "engines": ["unity"],
   "branches": [
-    { "name": "main", "unity": "6000", "manifest": { "com.example.lan": "file:YourLanPlugin/com.example.lan" } }
+    { "name": "main", "unity": "6000", "manifest": { "com.example.lan": "file:YourLanPackage/com.example.lan" } }
   ]
 }
 ```

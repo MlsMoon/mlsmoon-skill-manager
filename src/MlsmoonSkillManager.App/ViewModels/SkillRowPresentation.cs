@@ -5,21 +5,25 @@ namespace MlsmoonSkillManager.App.ViewModels;
 
 public static class SkillRowPresentation
 {
-    public static string KindLabel(SkillDefinition definition) => definition.IsLan
-        ? "局域网"
+    public static string KindLabel(SkillDefinition definition) => definition.IsPackage
+        ? "Package"
         : definition.IsPlugin
             ? "Plugin"
             : definition.IsCompanion
                 ? "随插件"
-                : "Skill";
+                : definition.IsLan
+                    ? "局域网"
+                    : "Skill";
 
-    public static BadgeAppearance KindAppearance(SkillDefinition definition) => definition.IsLan
-        ? BadgeAppearance.Warning
+    public static BadgeAppearance KindAppearance(SkillDefinition definition) => definition.IsPackage
+        ? BadgeAppearance.Package
         : definition.IsPlugin
             ? BadgeAppearance.Plugin
             : definition.IsCompanion
                 ? BadgeAppearance.Neutral
-                : BadgeAppearance.Accent;
+                : definition.IsLan
+                    ? BadgeAppearance.Warning
+                    : BadgeAppearance.Accent;
 
     public static string AccessText(RepoAccess access) => access.State switch
     {
@@ -66,12 +70,12 @@ public static class SkillRowPresentation
     }
 
     public static string CompanionHint(SkillDefinition definition) =>
-        definition.IsPlugin && definition.CompanionSkills.Count > 0
+        definition.IsProjectCopy && definition.CompanionSkills.Count > 0
             ? "安装时会一并写入 Skill 目标：" + string.Join("、", definition.CompanionSkills.Select(item => item.DisplayName))
             : "";
 
     public static string ParentHint(SkillDefinition definition) =>
         definition.IsCompanion && !string.IsNullOrWhiteSpace(definition.ParentPluginName)
-            ? $"属于 Plugin {definition.ParentPluginName}，装完插件后才会出现。"
+            ? $"属于 {definition.ParentPluginName}，装完后才会出现。"
             : "";
 }

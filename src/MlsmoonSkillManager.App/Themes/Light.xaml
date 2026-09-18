@@ -12,6 +12,9 @@
     <Color x:Key="AccentColor">#005FB8</Color>
     <Color x:Key="AccentSubtleColor">#1A005FB8</Color>
     <Color x:Key="OkColor">#0F7B0F</Color>
+    <Color x:Key="OkSubtleColor">#1A0F7B0F</Color>
+    <Color x:Key="WarnSubtleColor">#1A9D5D00</Color>
+    <Color x:Key="BadSubtleColor">#1AC42B1C</Color>
     <Color x:Key="WarnColor">#9D5D00</Color>
     <Color x:Key="BadColor">#C42B1C</Color>
     <Color x:Key="FieldColor">#FFFFFF</Color>
@@ -22,6 +25,8 @@
     <Color x:Key="ThemeSelectedColor">#E6F2FB</Color>
     <Color x:Key="PluginColor">#018574</Color>
     <Color x:Key="PluginSubtleColor">#1A018574</Color>
+    <Color x:Key="PackageColor">#6B3FA0</Color>
+    <Color x:Key="PackageSubtleColor">#1A6B3FA0</Color>
     <Color x:Key="ChipColor">#F0F0F0</Color>
     <Color x:Key="OverlayHoverColor">#14000000</Color>
     <Color x:Key="OverlayPressedColor">#1A000000</Color>
@@ -49,8 +54,11 @@
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
     <SolidColorBrush x:Key="AccentSubtleBrush" Color="{StaticResource AccentSubtleColor}"/>
     <SolidColorBrush x:Key="OkBrush" Color="{StaticResource OkColor}"/>
+    <SolidColorBrush x:Key="OkSubtleBrush" Color="{StaticResource OkSubtleColor}"/>
     <SolidColorBrush x:Key="WarnBrush" Color="{StaticResource WarnColor}"/>
+    <SolidColorBrush x:Key="WarnSubtleBrush" Color="{StaticResource WarnSubtleColor}"/>
     <SolidColorBrush x:Key="BadBrush" Color="{StaticResource BadColor}"/>
+    <SolidColorBrush x:Key="BadSubtleBrush" Color="{StaticResource BadSubtleColor}"/>
     <SolidColorBrush x:Key="FieldBrush" Color="{StaticResource FieldColor}"/>
     <SolidColorBrush x:Key="GhostBrush" Color="{StaticResource GhostColor}"/>
     <SolidColorBrush x:Key="SubtleBrush" Color="{StaticResource SubtleColor}"/>
@@ -59,6 +67,8 @@
     <SolidColorBrush x:Key="ThemeSelectedBrush" Color="{StaticResource ThemeSelectedColor}"/>
     <SolidColorBrush x:Key="PluginBrush" Color="{StaticResource PluginColor}"/>
     <SolidColorBrush x:Key="PluginSubtleBrush" Color="{StaticResource PluginSubtleColor}"/>
+    <SolidColorBrush x:Key="PackageBrush" Color="{StaticResource PackageColor}"/>
+    <SolidColorBrush x:Key="PackageSubtleBrush" Color="{StaticResource PackageSubtleColor}"/>
     <SolidColorBrush x:Key="ChipBrush" Color="{StaticResource ChipColor}"/>
     <SolidColorBrush x:Key="OverlayHoverBrush" Color="{StaticResource OverlayHoverColor}"/>
     <SolidColorBrush x:Key="OverlayPressedBrush" Color="{StaticResource OverlayPressedColor}"/>

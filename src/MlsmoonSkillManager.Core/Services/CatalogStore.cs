@@ -27,7 +27,7 @@ public sealed class CatalogStore
         foreach (var file in SearchCatalogFiles())
         {
             catalog = ReadCatalog(file);
-            if (catalog.Skills.Count > 0 || catalog.Plugins.Count > 0)
+            if (catalog.Skills.Count > 0 || catalog.Plugins.Count > 0 || catalog.Packages.Count > 0)
             {
                 break;
             }
@@ -60,9 +60,17 @@ public sealed class CatalogStore
             stored.CompanionSkills = AttachCompanions(map, stored);
         }
 
+        foreach (var package in catalog.Packages)
+        {
+            Ingest(map, package, ToolKind.Package);
+            var stored = map[package.Id];
+            stored.CompanionSkills = AttachCompanions(map, stored);
+        }
+
         catalog.Plugins = [];
+        catalog.Packages = [];
         catalog.Skills = map.Values
-            .OrderBy(s => s.IsPlugin || s.IsCompanion ? 1 : 0)
+            .OrderBy(s => s.IsProjectCopy || s.IsCompanion ? 1 : 0)
             .ThenBy(s => s.IsCompanion ? s.ParentPluginId : s.Id, StringComparer.OrdinalIgnoreCase)
             .ThenBy(s => s.IsCompanion ? 1 : 0)
             .ThenBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -165,6 +173,7 @@ public sealed class CatalogStore
         var extra = ReadCatalog(path);
         MergeList(target.Skills, extra.Skills);
         MergeList(target.Plugins, extra.Plugins);
+        MergeList(target.Packages, extra.Packages);
     }
 
     private static void MergeList(List<SkillDefinition> target, List<SkillDefinition> extra)

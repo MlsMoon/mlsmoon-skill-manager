@@ -17,7 +17,7 @@ public static class InstallSnapshot
     public static readonly HashSet<string> IgnoreNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".github", ".vs", "bin", "obj", ".idea", "Skills~",
-        SkillInstaller.MarkerFileName, SkillInstaller.PluginMarkerFileName,
+        SkillInstaller.MarkerFileName, SkillInstaller.PluginMarkerFileName, SkillInstaller.PackageMarkerFileName,
         "Thumbs.db", ".DS_Store"
     };
 

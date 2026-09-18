@@ -5,6 +5,7 @@ public enum BadgeAppearance
     Neutral,
     Accent,
     Plugin,
+    Package,
     Universal,
     Unity,
     Godot,

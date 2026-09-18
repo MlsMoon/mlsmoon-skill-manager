@@ -19,17 +19,21 @@ public static class SkillGitPresentation
         _ => BadgeAppearance.Neutral
     };
 
-    public static string ActionLabel(SkillGitState state) => state switch
+    public static string PullLabel(SkillGitStatus git)
     {
-        SkillGitState.Current => "已对齐",
-        SkillGitState.Behind => "更新到远端",
-        SkillGitState.Ahead => "本机超前",
-        SkillGitState.Diverged => "已分叉",
-        SkillGitState.Unclear => "无法判断",
-        SkillGitState.BranchSwitch => "切换分支",
-        SkillGitState.LocalChanges => "有本地修改",
-        SkillGitState.Conflict => "有冲突",
-        SkillGitState.Checking => "对照中",
-        _ => "对照 Git"
-    };
+        var n = git.Compare.BehindBy;
+        return n > 0 ? $"↓ {n}" : "↓ Pull";
+    }
+
+    public static string PushLabel(SkillGitStatus git)
+    {
+        var n = git.Compare.AheadBy;
+        return n > 0 ? $"↑ {n}" : "↑ Push";
+    }
+
+    public static bool CanPull(SkillGitStatus git, bool canInstall) =>
+        canInstall && git.CanUpdate;
+
+    public static bool CanPush(SkillGitStatus git, bool canInstall) =>
+        canInstall && git.State == SkillGitState.Ahead;
 }

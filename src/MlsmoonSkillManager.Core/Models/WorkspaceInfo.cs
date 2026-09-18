@@ -44,6 +44,7 @@ public sealed class RootInstallStatus
     public required string Root { get; init; }
     public bool Installed { get; init; }
     public bool Managed { get; init; }
+    public bool HasGit { get; init; }
     public string Commit { get; init; } = "";
     public string Branch { get; init; } = "";
     public string Path { get; init; } = "";

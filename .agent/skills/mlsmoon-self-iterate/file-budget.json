@@ -32,23 +32,13 @@
       "split": "工作区栏、卡片列表、设置内容拆到 Controls 或独立 XAML"
     },
     {
-      "path": "src/MlsmoonSkillManager.Core/Services/SkillInstaller.cs",
-      "ceiling": 417,
-      "split": "GitHub 复制 / 局域网 / companion / 卸载分开"
-    },
-    {
-      "path": "src/MlsmoonSkillManager.Core/Services/SkillGit.cs",
-      "ceiling": 341,
-      "split": "状态判定与远端命令分开"
-    },
-    {
       "path": "src/MlsmoonSkillManager.Core/Services/GitRemote.cs",
       "ceiling": 342,
       "split": "GitHub 远端与 LAN archive/readme 分开"
     },
     {
       "path": "tests/MlsmoonSkillManager.Tests/CatalogAndInstallTests.cs",
-      "ceiling": 342,
+      "ceiling": 338,
       "split": "按 catalog 合并 / 路径 / companion 拆类，禁止 mock"
     }
   ]

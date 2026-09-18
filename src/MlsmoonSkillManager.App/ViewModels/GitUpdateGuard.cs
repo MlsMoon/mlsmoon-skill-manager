@@ -20,7 +20,7 @@ public static class GitUpdateGuard
                 showDialog = false;
                 return true;
             case SkillGitState.Ahead:
-                message = $"{row.Name} 本机超前远端，不用更新。强行安装会把工作区装回更旧的远端提交。";
+                message = $"{row.Name} 本机超前远端。工作区副本没有 .git，不能 ↑ Push。↓ Pull 会把本机装回更旧的远端提交。";
                 showDialog = true;
                 return true;
             case SkillGitState.Diverged:
@@ -28,7 +28,9 @@ public static class GitUpdateGuard
                 showDialog = true;
                 return true;
             case SkillGitState.Unclear:
-                message = $"{row.Name} 本机与远端提交不同，但无法判断谁新，不会自动覆盖。";
+                message = string.IsNullOrWhiteSpace(row.Git.Message)
+                    ? $"{row.Name} 本机与远端提交不同，但无法判断谁新，不会自动覆盖。"
+                    : $"{row.Name}: {row.Git.Message}";
                 showDialog = true;
                 return true;
             case SkillGitState.Conflict:
